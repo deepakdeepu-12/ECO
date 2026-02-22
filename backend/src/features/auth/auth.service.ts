@@ -43,14 +43,21 @@ const createTransporter = () =>
     port: 587,
     secure: false,           // STARTTLS
     family: 4,               // force IPv4 – Render free tier has no IPv6 egress
-    auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS },
+    auth: {
+      user: process.env.EMAIL_USER,
+      // Gmail App Passwords are shown with spaces (e.g. "abcd efgh ijkl mnop").
+      // Strip them so the raw 16-char token is sent to the SMTP server.
+      pass: (process.env.EMAIL_PASS ?? '').replace(/\s+/g, ''),
+    },
   });
 
+/** Returns true if the email was sent, false on any SMTP error. */
 export const sendOTPEmail = async (
   email: string,
   name: string,
   otp: string
-): Promise<void> => {
+): Promise<boolean> => {
+  try {
   await createTransporter().sendMail({
     from: `"EcoSync 🌿" <${process.env.EMAIL_USER}>`,
     to: email,
@@ -107,4 +114,9 @@ export const sendOTPEmail = async (
       </html>
     `,
   });
+  return true;
+  } catch (err) {
+    console.error('⚠️  SMTP error (email not sent):', (err as Error).message);
+    return false;
+  }
 };

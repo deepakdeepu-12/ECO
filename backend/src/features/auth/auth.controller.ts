@@ -65,7 +65,7 @@ export const register = async (req: Request, res: Response): Promise<Response> =
         existingUser.otp = otp;
         existingUser.otpExpires = new Date(Date.now() + 5 * 60 * 1000);
         await existingUser.save();
-        await sendOTPEmail(existingUser.email, existingUser.name, otp);
+        void sendOTPEmail(existingUser.email, existingUser.name, otp);
         return res.status(200).json({
           success: true,
           message: 'Account already exists but is unverified. A new OTP has been sent.',
@@ -85,11 +85,13 @@ export const register = async (req: Request, res: Response): Promise<Response> =
       otpExpires: new Date(Date.now() + 5 * 60 * 1000),
       greenPoints: 100,
     });
-    await sendOTPEmail(user.email, user.name, otp);
+    const emailSent = await sendOTPEmail(user.email, user.name, otp);
 
     return res.status(201).json({
       success: true,
-      message: 'Account created! Please check your email for the 6-digit verification code.',
+      message: emailSent
+        ? 'Account created! Please check your email for the 6-digit verification code.'
+        : 'Account created! (Email delivery failed — check server logs for your OTP)',
       requiresVerification: true,
       email: user.email,
     });
@@ -194,7 +196,7 @@ export const resendOTP = async (req: Request, res: Response): Promise<Response> 
     user.otp = otp;
     user.otpExpires = new Date(Date.now() + 5 * 60 * 1000);
     await user.save();
-    await sendOTPEmail(user.email, user.name, otp);
+    void sendOTPEmail(user.email, user.name, otp);
 
     return res.status(200).json({ success: true, message: 'New verification code sent! Please check your email.' });
   } catch (error) {
@@ -262,7 +264,7 @@ export const login = async (req: Request, res: Response): Promise<Response> => {
       user.otp = otp;
       user.otpExpires = new Date(Date.now() + 5 * 60 * 1000);
       await user.save();
-      await sendOTPEmail(user.email, user.name, otp);
+      void sendOTPEmail(user.email, user.name, otp);
       return res.status(403).json({
         success: false,
         message: 'Email not verified. A new code has been sent to your email.',
