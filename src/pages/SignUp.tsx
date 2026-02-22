@@ -1,4 +1,4 @@
-﻿import { useState, useRef, useEffect } from 'react';
+﻿import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Mail,
@@ -25,7 +25,7 @@ interface OTPInputProps {
 
 function OTPInput({ value, onChange, disabled }: OTPInputProps) {
   const inputs = useRef<(HTMLInputElement | null)[]>([]);
-  const digits = value.padEnd(6, '').split('').slice(0, 6);
+  const digits = Array.from({ length: 6 }, (_, i) => value[i] ?? '');
 
   const handleChange = (index: number, char: string) => {
     const digit = char.replace(/\D/g, '').slice(-1);
@@ -207,10 +207,10 @@ export function SignUp({ onSuccess, onSwitchToSignIn, onBack }: SignUpProps) {
           {step === 'otp' ? 'Back to Registration' : 'Back to Home'}
         </button>
 
-        <AnimatePresence mode="wait">
-          {/* â”€â”€ STEP 1: Registration Form â”€â”€ */}
+        <AnimatePresence mode="sync">
+          {/* ── STEP 1: Registration Form ── */}
           {step === 'register' && (
-            <motion.div key="register" initial={{ opacity: 0, x: -30 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -30 }} transition={{ duration: 0.3 }}>
+            <motion.div key="register" initial={{ opacity: 0, x: -30 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -30 }} transition={{ duration: 0.25 }}>
               <div className="bg-white/10 backdrop-blur-xl rounded-3xl p-8 shadow-2xl border border-white/20">
                 <div className="flex justify-center mb-6">
                   <div className="w-16 h-16 bg-gradient-to-br from-green-400 to-emerald-600 rounded-2xl flex items-center justify-center shadow-lg">

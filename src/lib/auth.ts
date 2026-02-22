@@ -3,7 +3,7 @@
 // JWT is stored in localStorage as "ecosync_token".
 // User profile is cached in localStorage as "ecosync_user" for fast reads.
 
-const API_BASE = 'http://localhost:3001/api/auth';
+const API_BASE = `${import.meta.env.VITE_API_URL ?? 'http://localhost:3001'}/api/auth`;
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 

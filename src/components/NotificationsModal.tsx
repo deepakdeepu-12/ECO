@@ -43,7 +43,7 @@ export function NotificationsModal({ isOpen, onClose, user }: NotificationsModal
     useEffect(() => {
         if (!isOpen) return;
         setLoading(true);
-        fetch(`http://localhost:3001/api/user/${user.id}/notifications`)
+        fetch(`${import.meta.env.VITE_API_URL ?? 'http://localhost:3001'}/api/user/${user.id}/notifications`)
             .then(r => r.json())
             .then(res => { if (res.success) setPrefs(res.data); })
             .catch(() => { })
@@ -57,7 +57,7 @@ export function NotificationsModal({ isOpen, onClose, user }: NotificationsModal
     const handleSave = async () => {
         setSaving(true);
         try {
-            const res = await fetch(`http://localhost:3001/api/user/${user.id}/notifications`, {
+            const res = await fetch(`${import.meta.env.VITE_API_URL ?? 'http://localhost:3001'}/api/user/${user.id}/notifications`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(prefs),

@@ -42,7 +42,7 @@ export function PrivacySecurityModal({ isOpen, onClose, user, onAccountDeleted }
         }
         setPwLoading(true);
         try {
-            const res = await fetch(`http://localhost:3001/api/user/${user.id}/password`, {
+            const res = await fetch(`${import.meta.env.VITE_API_URL ?? 'http://localhost:3001'}/api/user/${user.id}/password`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ currentPassword: currentPw, newPassword: newPw }),
@@ -60,7 +60,7 @@ export function PrivacySecurityModal({ isOpen, onClose, user, onAccountDeleted }
     const handleDeleteAccount = async () => {
         setDeleteLoading(true);
         try {
-            const res = await fetch(`http://localhost:3001/api/user/${user.id}/account`, {
+            const res = await fetch(`${import.meta.env.VITE_API_URL ?? 'http://localhost:3001'}/api/user/${user.id}/account`, {
                 method: 'DELETE',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ confirmation: deleteInput }),
