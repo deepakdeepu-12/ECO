@@ -1,6 +1,6 @@
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import { Resend } from 'resend';
+import nodemailer from 'nodemailer';
 
 // ─── In-Memory Fallback (when MongoDB is unreachable) ─────────────────────────
 
@@ -34,23 +34,33 @@ export const signToken = (userId: unknown): string =>
 export const hashPassword   = (plain: string)           => bcrypt.hash(plain, 12);
 export const comparePassword = (plain: string, hash: string) => bcrypt.compare(plain, hash);
 
-// ─── Email (Resend HTTP API – works on all hosting platforms) ────────────────
-// Sign up free at https://resend.com → get API key → set RESEND_API_KEY env var.
-// For sending to ANY address, add + verify your domain in the Resend dashboard
-// and set EMAIL_FROM=noreply@yourdomain.com. Without a verified domain Resend
-// only delivers to the address that owns the API key (good enough for testing).
+// ─── Email (Nodemailer with Gmail) ───────────────────────────────────────────
+// Gmail setup:
+// 1. Enable 2FA on your Google account
+// 2. Create App Password at https://myaccount.google.com/apppasswords
+// 3. Set EMAIL_USER and EMAIL_PASSWORD in .env
 
-const getResend = () => new Resend(process.env.RESEND_API_KEY);
+const getTransporter = () => {
+  return nodemailer.createTransport({
+    service: 'gmail',
+    auth: {
+      user: process.env.EMAIL_USER,
+      pass: process.env.EMAIL_PASSWORD,
+    },
+  });
+};
 
-/** Returns true if the email was sent, false on any API error. */
+/** Returns true if the email was sent, false on any error. */
 export const sendOTPEmail = async (
   email: string,
   name: string,
   otp: string
 ): Promise<boolean> => {
   try {
-    const from = process.env.EMAIL_FROM ?? 'EcoSync <onboarding@resend.dev>';
-    const { error } = await getResend().emails.send({
+    const from = process.env.EMAIL_FROM ?? 'EcoSync <noreply@ecosync.com>';
+    const transporter = getTransporter();
+    
+    await transporter.sendMail({
       from,
       to: email,
       subject: 'EcoSync – Your Verification Code',
@@ -106,13 +116,10 @@ export const sendOTPEmail = async (
       </html>
     `,
     });
-    if (error) {
-      console.error('⚠️  Resend error (email not sent):', error.message);
-      return false;
-    }
+    
     return true;
   } catch (err) {
-    console.error('⚠️  Resend error (email not sent):', (err as Error).message);
+    console.error('⚠️  Email error (not sent):', (err as Error).message);
     return false;
   }
 };
