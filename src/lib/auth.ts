@@ -1,200 +1,200 @@
-// Simulated Backend Authentication Service
-// In production, this would connect to a real backend server
+// ─── EcoSync Auth Library ─────────────────────────────────────────────────────
+// All auth calls go to the Express backend.
+// JWT is stored in localStorage as "ecosync_token".
+// User profile is cached in localStorage as "ecosync_user" for fast reads.
 
-interface User {
+const API_BASE = 'http://localhost:3001/api/auth';
+
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+export interface User {
   id: string;
-  email: string;
   name: string;
+  email: string;
+  isVerified: boolean;
   greenPoints: number;
   totalRecycled: number;
   carbonSaved: number;
-  joinedDate: string;
+  level: string;
   avatar?: string;
+  joinedDate: string;
 }
 
-interface AuthResponse {
+export interface AuthResponse {
   success: boolean;
   message: string;
   user?: User;
   token?: string;
+  requiresVerification?: boolean;
+  email?: string;
 }
 
-// Simulated user database
-const usersDB: Map<string, { user: User; password: string }> = new Map();
+// ─── Internal helpers ─────────────────────────────────────────────────────────
 
-// Initialize with a demo user
-usersDB.set('demo@ecosync.com', {
-  user: {
-    id: 'user_001',
-    email: 'demo@ecosync.com',
-    name: 'Demo User',
-    greenPoints: 2450,
-    totalRecycled: 156,
-    carbonSaved: 89.5,
-    joinedDate: '2024-01-15',
-  },
-  password: 'demo123'
-});
-
-// Generate unique ID
-const generateId = (): string => {
-  return 'user_' + Math.random().toString(36).substr(2, 9);
-};
-
-// Generate JWT-like token (simulated)
-const generateToken = (userId: string): string => {
-  const header = btoa(JSON.stringify({ alg: 'HS256', typ: 'JWT' }));
-  const payload = btoa(JSON.stringify({ 
-    userId, 
-    exp: Date.now() + 24 * 60 * 60 * 1000 // 24 hours
-  }));
-  const signature = btoa(userId + Date.now().toString());
-  return `${header}.${payload}.${signature}`;
-};
-
-// Validate token
-export const validateToken = (token: string): { valid: boolean; userId?: string } => {
-  try {
-    const parts = token.split('.');
-    if (parts.length !== 3) return { valid: false };
-    
-    const payload = JSON.parse(atob(parts[1]));
-    if (payload.exp < Date.now()) return { valid: false };
-    
-    return { valid: true, userId: payload.userId };
-  } catch {
-    return { valid: false };
-  }
-};
-
-// Sign In
-export const signIn = async (email: string, password: string): Promise<AuthResponse> => {
-  // Simulate network delay
-  await new Promise(resolve => setTimeout(resolve, 800));
-  
-  const userRecord = usersDB.get(email.toLowerCase());
-  
-  if (!userRecord) {
-    return {
-      success: false,
-      message: 'No account found with this email address'
-    };
-  }
-  
-  if (userRecord.password !== password) {
-    return {
-      success: false,
-      message: 'Incorrect password. Please try again.'
-    };
-  }
-  
-  const token = generateToken(userRecord.user.id);
-  
-  // Store token in localStorage
+const setSession = (token: string, user: User): void => {
   localStorage.setItem('ecosync_token', token);
-  localStorage.setItem('ecosync_user', JSON.stringify(userRecord.user));
-  
-  return {
-    success: true,
-    message: 'Sign in successful!',
-    user: userRecord.user,
-    token
-  };
+  localStorage.setItem('ecosync_user', JSON.stringify(user));
 };
 
-// Sign Up
-export const signUp = async (
-  name: string, 
-  email: string, 
-  password: string
-): Promise<AuthResponse> => {
-  // Simulate network delay
-  await new Promise(resolve => setTimeout(resolve, 1000));
-  
-  if (usersDB.has(email.toLowerCase())) {
-    return {
-      success: false,
-      message: 'An account with this email already exists'
-    };
-  }
-  
-  if (password.length < 6) {
-    return {
-      success: false,
-      message: 'Password must be at least 6 characters long'
-    };
-  }
-  
-  const newUser: User = {
-    id: generateId(),
-    email: email.toLowerCase(),
-    name,
-    greenPoints: 100, // Welcome bonus
-    totalRecycled: 0,
-    carbonSaved: 0,
-    joinedDate: new Date().toISOString().split('T')[0],
-  };
-  
-  usersDB.set(email.toLowerCase(), {
-    user: newUser,
-    password
-  });
-  
-  const token = generateToken(newUser.id);
-  
-  localStorage.setItem('ecosync_token', token);
-  localStorage.setItem('ecosync_user', JSON.stringify(newUser));
-  
-  return {
-    success: true,
-    message: 'Account created successfully! Welcome to EcoSync!',
-    user: newUser,
-    token
-  };
-};
-
-// Sign Out
-export const signOut = (): void => {
+const clearSession = (): void => {
   localStorage.removeItem('ecosync_token');
   localStorage.removeItem('ecosync_user');
 };
 
-// Get Current User
-export const getCurrentUser = (): User | null => {
-  const token = localStorage.getItem('ecosync_token');
-  const userStr = localStorage.getItem('ecosync_user');
-  
-  if (!token || !userStr) return null;
-  
-  const { valid } = validateToken(token);
-  if (!valid) {
-    signOut();
-    return null;
-  }
-  
+// ─── Register ─────────────────────────────────────────────────────────────────
+// Creates account and sends OTP to email.
+// On success, requiresVerification=true — redirect to OTP screen.
+
+export const signUp = async (
+  name: string,
+  email: string,
+  password: string
+): Promise<AuthResponse> => {
   try {
-    return JSON.parse(userStr);
+    const res = await fetch(`${API_BASE}/register`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, email, password }),
+    });
+
+    const data = await res.json();
+    return data;
+  } catch {
+    return { success: false, message: 'Cannot connect to server. Is the backend running?' };
+  }
+};
+
+// ─── Verify OTP ───────────────────────────────────────────────────────────────
+// Validates the 6-digit code. On success, stores JWT + user and returns token.
+
+export const verifyOTP = async (email: string, otp: string): Promise<AuthResponse> => {
+  try {
+    const res = await fetch(`${API_BASE}/verify-otp`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, otp }),
+    });
+
+    const data = await res.json();
+
+    if (data.success && data.token && data.user) {
+      setSession(data.token, data.user);
+    }
+
+    return data;
+  } catch {
+    return { success: false, message: 'Cannot connect to server. Is the backend running?' };
+  }
+};
+
+// ─── Resend OTP ───────────────────────────────────────────────────────────────
+
+export const resendOTP = async (email: string): Promise<AuthResponse> => {
+  try {
+    const res = await fetch(`${API_BASE}/resend-otp`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email }),
+    });
+    return await res.json();
+  } catch {
+    return { success: false, message: 'Cannot connect to server.' };
+  }
+};
+
+// ─── Sign In ──────────────────────────────────────────────────────────────────
+// Authenticates credentials, stores JWT + user on success.
+
+export const signIn = async (email: string, password: string): Promise<AuthResponse> => {
+  try {
+    const res = await fetch(`${API_BASE}/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password }),
+    });
+
+    const data = await res.json();
+
+    if (data.success && data.token && data.user) {
+      setSession(data.token, data.user);
+    }
+
+    return data;
+  } catch {
+    return { success: false, message: 'Cannot connect to server. Is the backend running?' };
+  }
+};
+
+// ─── Sign Out ─────────────────────────────────────────────────────────────────
+
+export const signOut = (): void => {
+  clearSession();
+};
+
+// ─── Get Current User (from localStorage cache) ───────────────────────────────
+// Fast synchronous read — no network call.
+
+export const getCurrentUser = (): User | null => {
+  try {
+    const token = localStorage.getItem('ecosync_token');
+    const userStr = localStorage.getItem('ecosync_user');
+    if (!token || !userStr) return null;
+    return JSON.parse(userStr) as User;
   } catch {
     return null;
   }
 };
 
-// Check if user is authenticated
+// ─── Is Authenticated ─────────────────────────────────────────────────────────
+// Returns true if a JWT exists in localStorage.
+// Note: does NOT re-validate the token against the server — use /api/auth/profile for that.
+
 export const isAuthenticated = (): boolean => {
-  const token = localStorage.getItem('ecosync_token');
-  if (!token) return false;
-  
-  const { valid } = validateToken(token);
-  return valid;
+  return !!localStorage.getItem('ecosync_token');
 };
 
-// Update user stats (for demo purposes)
-export const updateUserStats = (stats: Partial<User>): void => {
-  const user = getCurrentUser();
-  if (user) {
-    const updatedUser = { ...user, ...stats };
-    localStorage.setItem('ecosync_user', JSON.stringify(updatedUser));
+// ─── Get Auth Header ──────────────────────────────────────────────────────────
+// Returns the Authorization header object for authenticated fetch calls.
+
+export const getAuthHeaders = (): Record<string, string> => {
+  const token = localStorage.getItem('ecosync_token');
+  return token
+    ? { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }
+    : { 'Content-Type': 'application/json' };
+};
+
+// ─── Fetch Protected Profile ──────────────────────────────────────────────────
+// Hits the backend to re-validate token & return fresh user data.
+
+export const fetchProfile = async (): Promise<AuthResponse> => {
+  try {
+    const res = await fetch(`${API_BASE}/profile`, {
+      headers: getAuthHeaders(),
+    });
+
+    const data = await res.json();
+
+    if (data.success && data.user) {
+      // Refresh local cache
+      const token = localStorage.getItem('ecosync_token');
+      if (token) setSession(token, data.user);
+    } else if (res.status === 401) {
+      clearSession();
+    }
+
+    return data;
+  } catch {
+    return { success: false, message: 'Cannot connect to server.' };
   }
 };
 
-export type { User, AuthResponse };
+// ─── Update User Stats (local cache only) ────────────────────────────────────
+// Used by WasteScanner / Dashboard to update points without a full re-fetch.
+
+export const updateUserStats = (stats: Partial<User>): void => {
+  const user = getCurrentUser();
+  if (user) {
+    const updated = { ...user, ...stats };
+    localStorage.setItem('ecosync_user', JSON.stringify(updated));
+  }
+};

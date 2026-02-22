@@ -3,12 +3,17 @@ const express = require('express');
 const cors = require('cors');
 const mongoose = require('mongoose');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
+const authRoutes = require('./routes/authRoutes');
+const User = require('./models/User');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
 
 app.use(cors());
 app.use(express.json({ limit: '20mb' }));
+
+// ─── Auth Routes ─────────────────────────────────────────────────────────────
+app.use('/api/auth', authRoutes);
 
 // ─── MongoDB Connection ───────────────────────────────────────────────────────
 
@@ -41,19 +46,9 @@ const supportTicketSchema = new mongoose.Schema({
 
 const SupportTicket = mongoose.model('SupportTicket', supportTicketSchema);
 
-const userSchema = new mongoose.Schema({
-  userId:        { type: String, required: true, unique: true },
-  email:         { type: String, required: true, unique: true },
-  name:          String,
-  greenPoints:   { type: Number, default: 0 },
-  totalRecycled: { type: Number, default: 0 },
-  carbonSaved:   { type: Number, default: 0 },
-  joinedDate:    String,
-  avatar:        String,
-  password:      String,
-}, { timestamps: true });
-
-const UserModel = mongoose.model('User', userSchema);
+// User model is defined in models/User.js and imported above.
+// UserModel alias kept for any legacy references in this file.
+const UserModel = User;
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
@@ -306,7 +301,12 @@ app.listen(PORT, () => {
   console.log(`\n🌿 EcoSync AI Backend running on http://localhost:${PORT}`);
   console.log(`📋 Health:         GET  /api/health`);
   console.log(`🤖 Classify:       POST /api/classify`);
-  console.log(`🔔 Notifications:  GET  /api/user/:id/notifications`);
+  console.log(`� Register:       POST /api/auth/register`);
+  console.log(`✅ Verify OTP:     POST /api/auth/verify-otp`);
+  console.log(`🔁 Resend OTP:     POST /api/auth/resend-otp`);
+  console.log(`🔓 Login:          POST /api/auth/login`);
+  console.log(`👤 Profile:        GET  /api/auth/profile  [protected]`);
+  console.log(`�🔔 Notifications:  GET  /api/user/:id/notifications`);
   console.log(`🔔                 PUT  /api/user/:id/notifications`);
   console.log(`🔐 Password:       PUT  /api/user/:id/password`);
   console.log(`🗑️  Delete Acct:   DELETE /api/user/:id/account`);
