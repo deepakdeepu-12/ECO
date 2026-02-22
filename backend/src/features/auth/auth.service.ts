@@ -39,7 +39,10 @@ export const comparePassword = (plain: string, hash: string) => bcrypt.compare(p
 
 const createTransporter = () =>
   nodemailer.createTransport({
-    service: 'gmail',
+    host: 'smtp.gmail.com',
+    port: 587,
+    secure: false,           // STARTTLS
+    family: 4,               // force IPv4 – Render free tier has no IPv6 egress
     auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS },
   });
 

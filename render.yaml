@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: ecosync-backend
+    runtime: node
+    rootDir: backend
+    buildCommand: npm install
+    startCommand: node -r @swc-node/register server.ts
+    envVars:
+      - key: NODE_ENV
+        value: production
