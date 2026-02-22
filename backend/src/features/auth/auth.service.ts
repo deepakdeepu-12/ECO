@@ -1,6 +1,6 @@
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import nodemailer from 'nodemailer';
+import { Resend } from 'resend';
 
 // ─── In-Memory Fallback (when MongoDB is unreachable) ─────────────────────────
 
@@ -34,34 +34,26 @@ export const signToken = (userId: unknown): string =>
 export const hashPassword   = (plain: string)           => bcrypt.hash(plain, 12);
 export const comparePassword = (plain: string, hash: string) => bcrypt.compare(plain, hash);
 
-// ─── Email ────────────────────────────────────────────────────────────────────
-// Uses Gmail + App Password. Generate one at: https://myaccount.google.com/apppasswords
+// ─── Email (Resend HTTP API – works on all hosting platforms) ────────────────
+// Sign up free at https://resend.com → get API key → set RESEND_API_KEY env var.
+// For sending to ANY address, add + verify your domain in the Resend dashboard
+// and set EMAIL_FROM=noreply@yourdomain.com. Without a verified domain Resend
+// only delivers to the address that owns the API key (good enough for testing).
 
-const createTransporter = () =>
-  nodemailer.createTransport({
-    host: 'smtp.gmail.com',
-    port: 587,
-    secure: false,           // STARTTLS
-    family: 4,               // force IPv4 – Render free tier has no IPv6 egress
-    auth: {
-      user: process.env.EMAIL_USER,
-      // Gmail App Passwords are shown with spaces (e.g. "abcd efgh ijkl mnop").
-      // Strip them so the raw 16-char token is sent to the SMTP server.
-      pass: (process.env.EMAIL_PASS ?? '').replace(/\s+/g, ''),
-    },
-  });
+const getResend = () => new Resend(process.env.RESEND_API_KEY);
 
-/** Returns true if the email was sent, false on any SMTP error. */
+/** Returns true if the email was sent, false on any API error. */
 export const sendOTPEmail = async (
   email: string,
   name: string,
   otp: string
 ): Promise<boolean> => {
   try {
-  await createTransporter().sendMail({
-    from: `"EcoSync 🌿" <${process.env.EMAIL_USER}>`,
-    to: email,
-    subject: 'EcoSync – Your Verification Code',
+    const from = process.env.EMAIL_FROM ?? 'EcoSync <onboarding@resend.dev>';
+    const { error } = await getResend().emails.send({
+      from,
+      to: email,
+      subject: 'EcoSync – Your Verification Code',
     html: `
       <!DOCTYPE html>
       <html>
@@ -113,10 +105,14 @@ export const sendOTPEmail = async (
       </body>
       </html>
     `,
-  });
-  return true;
+    });
+    if (error) {
+      console.error('⚠️  Resend error (email not sent):', error.message);
+      return false;
+    }
+    return true;
   } catch (err) {
-    console.error('⚠️  SMTP error (email not sent):', (err as Error).message);
+    console.error('⚠️  Resend error (email not sent):', (err as Error).message);
     return false;
   }
 };
