@@ -64,37 +64,18 @@ export function LandingPage({ onNavigate }: Props) {
   const handleDownload = async () => {
     setIsDownloading(true);
     try {
-      const device = detectDevice();
       const result = await downloadApp();
       
       if (result.success) {
         setDownloadCount(prev => prev + 1);
-        
-        // Show success message based on platform
-        if (device.isAndroid) {
-          alert('✅ APK download started!\n\n' +
-                '📱 Installation Steps:\n' +
-                '1. Check your Downloads folder\n' +
-                '2. Tap on EcoSync-v2.1.0.apk\n' +
-                '3. Enable "Install from Unknown Sources" if prompted\n' +
-                '4. Follow the installation wizard\n\n' +
-                '🎉 Enjoy the full EcoSync experience!');
-        } else if (device.isIOS) {
-          alert(result.message);
-        } else {
-          alert('✅ APK download started!\n\n' +
-                '📱 To install on your Android phone:\n' +
-                '1. Transfer the APK file to your phone\n' +
-                '2. Open the file on your phone\n' +
-                '3. Enable "Install from Unknown Sources"\n' +
-                '4. Install and enjoy!');
-        }
+        alert('✅ ' + result.message);
       } else {
-        alert('❌ ' + result.message);
+        // Show the detailed message for demo mode or errors
+        alert(result.message);
       }
     } catch (error) {
       console.error('Download failed:', error);
-      alert('❌ Download failed. Please try again or contact support.');
+      alert('An error occurred. Please try again or use the web version of the app.');
     } finally {
       setIsDownloading(false);
     }
@@ -204,12 +185,12 @@ export function LandingPage({ onNavigate }: Props) {
                   className="flex items-center justify-center gap-3 bg-gradient-to-r from-green-500 to-emerald-600 text-white px-8 py-4 rounded-2xl font-semibold hover:from-green-600 hover:to-emerald-700 transition-all shadow-lg shadow-green-500/25 disabled:opacity-70"
                 >
                   {isDownloading ? (
-                    <><Loader2 className="w-6 h-6 animate-spin" />Downloading...</>
+                    <><Loader2 className="w-6 h-6 animate-spin" />Loading...</>
                   ) : (
                     <><Download className="w-6 h-6" />
-                      {userDevice.isAndroid ? 'Download Now (Android)' : 
-                       userDevice.isIOS ? 'Get App (iOS)' : 
-                       'Download App'}
+                      {userDevice.isAndroid ? 'Get Started' : 
+                       userDevice.isIOS ? 'Get Started' : 
+                       'Get Started'}
                     </>
                   )}
                 </button>
@@ -433,17 +414,17 @@ export function LandingPage({ onNavigate }: Props) {
             </p>
             {userDevice.isAndroid && (
               <p className="text-green-400 text-sm mb-6">
-                📱 Detected: Android device - Download APK below
+                📱 Detected: Android device - Use the web app now or wait for native app!
               </p>
             )}
             {userDevice.isIOS && (
               <p className="text-blue-400 text-sm mb-6">
-                📱 Detected: iOS device - Coming soon to App Store!
+                📱 Detected: iOS device - Use the web app now!
               </p>
             )}
             {!userDevice.isMobile && (
               <p className="text-gray-400 text-sm mb-6">
-                💻 Download APK for Android or scan QR code with your phone
+                💻 Access from your mobile device for the best experience
               </p>
             )}
             <div className="flex flex-col sm:flex-row gap-4 justify-center mb-8">
@@ -453,12 +434,12 @@ export function LandingPage({ onNavigate }: Props) {
                 className="flex items-center justify-center gap-3 bg-white text-gray-900 px-8 py-4 rounded-2xl font-semibold hover:bg-gray-100 transition-all shadow-lg disabled:opacity-70"
               >
                 {isDownloading ? (
-                  <><Loader2 className="w-6 h-6 animate-spin" />Downloading...</>
+                  <><Loader2 className="w-6 h-6 animate-spin" />Loading...</>
                 ) : (
                   <><Download className="w-6 h-6" />
-                    {userDevice.isAndroid ? 'Download for Android' : 
-                     userDevice.isIOS ? 'iOS Coming Soon' : 
-                     'Download APK (Android)'}
+                    {userDevice.isAndroid ? 'Get Mobile App' : 
+                     userDevice.isIOS ? 'Get Mobile App' : 
+                     'Get Mobile App'}
                   </>
                 )}
               </button>

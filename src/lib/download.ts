@@ -70,75 +70,13 @@ export const detectDevice = (): DeviceInfo => {
   };
 };
 
-// Generate APK file content (simulated)
-const generateAPKContent = (): Blob => {
-  // Create a proper APK-like structure
-  // In production, this would be a real APK file from your server
-  
-  const apkHeader = new Uint8Array([
-    0x50, 0x4B, 0x03, 0x04, // PK ZIP header (APK is a ZIP file)
-    0x14, 0x00, 0x00, 0x00,
-    0x08, 0x00, 0x00, 0x00,
-  ]);
-  
-  // Create manifest content
-  const manifestContent = `
-EcoSync - Smart Waste Management App
-=====================================
-Version: 2.1.0
-Package: com.ecosync.wastemanagement
-Min SDK: 21 (Android 5.0)
-Target SDK: 34 (Android 14)
+// Configuration: Set your actual APK download URL here
+// Replace this with your real APK hosted on a server, CDN, or file hosting service
+const APK_DOWNLOAD_URL = ''; // e.g., 'https://your-domain.com/downloads/EcoSync-v2.1.0.apk'
 
-Features:
-- AI-powered waste classification
-- Smart bin monitoring
-- Route optimization
-- Recycling rewards
-- Carbon footprint tracking
-- Community challenges
-
-© 2024 EcoSync Technologies
-  `.trim();
-  
-  // Create app info
-  const appInfo = {
-    name: "EcoSync",
-    version: "2.1.0",
-    versionCode: 21,
-    packageName: "com.ecosync.wastemanagement",
-    minSdkVersion: 21,
-    targetSdkVersion: 34,
-    permissions: [
-      "android.permission.CAMERA",
-      "android.permission.ACCESS_FINE_LOCATION",
-      "android.permission.INTERNET",
-      "android.permission.WRITE_EXTERNAL_STORAGE"
-    ],
-    features: [
-      "AI Waste Classification",
-      "Smart Bin Monitoring",
-      "Route Optimization",
-      "Recycling Rewards",
-      "Carbon Tracking",
-      "Community Features"
-    ],
-    buildDate: new Date().toISOString(),
-    developer: "EcoSync Technologies",
-    website: "https://ecosync.app"
-  };
-  
-  // Combine all content
-  const fullContent = new TextEncoder().encode(
-    JSON.stringify(appInfo, null, 2) + '\n\n' + manifestContent
-  );
-  
-  // Create the final blob
-  const combinedArray = new Uint8Array(apkHeader.length + fullContent.length);
-  combinedArray.set(apkHeader, 0);
-  combinedArray.set(fullContent, apkHeader.length);
-  
-  return new Blob([combinedArray], { type: 'application/vnd.android.package-archive' });
+// Check if we have a real APK to download
+const hasRealAPK = (): boolean => {
+  return APK_DOWNLOAD_URL.trim().length > 0;
 };
 
 // Main download function
@@ -170,83 +108,81 @@ export const downloadApp = async (): Promise<DownloadResponse> => {
     }
     */
     
-    // For development/testing: Direct APK download
-    // This simulates downloading the actual app for Android
-    if (deviceInfo.isAndroid || !deviceInfo.isMobile) {
-      // Simulate server processing
-      await new Promise(resolve => setTimeout(resolve, 800));
-      
-      // Generate the APK file
-      const apkBlob = generateAPKContent();
-      
-      // Create download URL
-      const downloadUrl = URL.createObjectURL(apkBlob);
-      
-      // For mobile devices, use a more reliable download method
-      if (deviceInfo.isMobile) {
-        // Create a temporary link and trigger download
+    // Check if we have a real APK to download
+    if (hasRealAPK()) {
+      // Download from hosted URL
+      if (deviceInfo.isAndroid || !deviceInfo.isMobile) {
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
         const link = document.createElement('a');
-        link.href = downloadUrl;
+        link.href = APK_DOWNLOAD_URL;
         link.download = 'EcoSync-v2.1.0.apk';
         link.setAttribute('target', '_blank');
+        link.setAttribute('rel', 'noopener noreferrer');
         
-        // For Android, we need to handle the download more carefully
-        document.body.appendChild(link);
-        link.click();
-        
-        // Clean up
-        setTimeout(() => {
-          document.body.removeChild(link);
-          URL.revokeObjectURL(downloadUrl);
-        }, 1000);
-        
-      } else {
-        // Desktop download
-        const link = document.createElement('a');
-        link.href = downloadUrl;
-        link.download = 'EcoSync-v2.1.0.apk';
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
         
-        // Clean up the URL after download starts
-        setTimeout(() => URL.revokeObjectURL(downloadUrl), 1000);
+        updateDownloadStats(deviceInfo.platform);
+        
+        return {
+          success: true,
+          message: deviceInfo.isAndroid 
+            ? 'Download started! Check your downloads folder.' 
+            : 'Download started! Transfer to your Android device.',
+          downloadUrl: APK_DOWNLOAD_URL,
+          fileName: 'EcoSync-v2.1.0.apk',
+          platform: deviceInfo.platform
+        };
       }
-      
-      // Update download statistics
-      updateDownloadStats(deviceInfo.platform);
-      
+    }
+    
+    // No real APK available - this is a web app demo
+    if (deviceInfo.isAndroid) {
       return {
-        success: true,
-        message: deviceInfo.isAndroid 
-          ? 'APK download started! Please check your downloads folder and install the app.' 
-          : 'APK download started! Transfer to your Android device to install.',
-        downloadUrl,
-        fileName: 'EcoSync-v2.1.0.apk',
-        platform: deviceInfo.platform
+        success: false,
+        message: 'Demo Mode: This is currently a web application.\n\n' +
+                 '✨ Good news! You can use all features right now in your mobile browser!\n\n' +
+                 '📱 To use the full app:\n' +
+                 '• Continue using this website on your phone\n' +
+                 '• All features work in your browser\n' +
+                 '• Save this page to your home screen for easy access\n\n' +
+                 '🔔 Native Android app coming soon!',
+        platform: 'android'
       };
     }
     
-    // iOS users without App Store link
+    // iOS users
     if (deviceInfo.isIOS) {
       return {
         success: false,
-        message: 'iOS version coming soon! Please check back later or use the web version.',
+        message: 'Demo Mode: This is currently a web application.\n\n' +
+                 '✨ You can use all features right now in Safari!\n\n' +
+                 '📱 To add to home screen:\n' +
+                 '1. Tap the Share button (box with arrow)\n' +
+                 '2. Scroll and tap "Add to Home Screen"\n' +
+                 '3. Enjoy app-like experience!\n\n' +
+                 '🔔 iOS app coming soon!',
         platform: 'ios'
       };
     }
     
+    // Desktop users
     return {
       success: false,
-      message: 'Unsupported platform',
-      platform: deviceInfo.platform
+      message: 'This is a web application demo.\n\n' +
+               'The mobile app is currently in development.\n\n' +
+               'You can explore all features through this website,\n' +
+               'or access it from your mobile device for the best experience.',
+      platform: 'web'
     };
     
   } catch (error) {
     console.error('Download error:', error);
     return {
       success: false,
-      message: 'Download failed. Please try again.'
+      message: 'An error occurred. Please try again or use the web version.'
     };
   }
 };
