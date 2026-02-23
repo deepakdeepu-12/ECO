@@ -4,6 +4,7 @@
 interface DownloadStats {
   totalDownloads: number;
   androidDownloads: number;
+  iosDownloads: number;
   lastDownloadTime: string;
 }
 
@@ -12,6 +13,15 @@ interface DownloadResponse {
   message: string;
   downloadUrl?: string;
   fileName?: string;
+  platform?: 'android' | 'ios' | 'web';
+}
+
+interface DeviceInfo {
+  platform: 'android' | 'ios' | 'web';
+  isAndroid: boolean;
+  isIOS: boolean;
+  isMobile: boolean;
+  userAgent: string;
 }
 
 // Track downloads in localStorage (simulated backend)
@@ -22,17 +32,42 @@ const getDownloadStats = (): DownloadStats => {
   }
   return {
     totalDownloads: 125847,
-    androidDownloads: 125847,
+    androidDownloads: 98654,
+    iosDownloads: 27193,
     lastDownloadTime: new Date().toISOString()
   };
 };
 
-const updateDownloadStats = (): void => {
+const updateDownloadStats = (platform: 'android' | 'ios' | 'web'): void => {
   const stats = getDownloadStats();
   stats.totalDownloads += 1;
-  stats.androidDownloads += 1;
+  if (platform === 'android') {
+    stats.androidDownloads += 1;
+  } else if (platform === 'ios') {
+    stats.iosDownloads += 1;
+  }
   stats.lastDownloadTime = new Date().toISOString();
   localStorage.setItem('ecosync_download_stats', JSON.stringify(stats));
+};
+
+// Detect user's device and platform
+export const detectDevice = (): DeviceInfo => {
+  const userAgent = navigator.userAgent || navigator.vendor || (window as any).opera;
+  const isAndroid = /android/i.test(userAgent);
+  const isIOS = /iPad|iPhone|iPod/.test(userAgent) && !(window as any).MSStream;
+  const isMobile = isAndroid || isIOS;
+  
+  let platform: 'android' | 'ios' | 'web' = 'web';
+  if (isAndroid) platform = 'android';
+  else if (isIOS) platform = 'ios';
+  
+  return {
+    platform,
+    isAndroid,
+    isIOS,
+    isMobile,
+    userAgent
+  };
 };
 
 // Generate APK file content (simulated)
@@ -109,35 +144,104 @@ Features:
 // Main download function
 export const downloadApp = async (): Promise<DownloadResponse> => {
   try {
-    // Simulate server processing
-    await new Promise(resolve => setTimeout(resolve, 500));
+    const deviceInfo = detectDevice();
     
-    // Generate the APK file
-    const apkBlob = generateAPKContent();
+    // For production apps, redirect to app stores
+    // Uncomment these when you have published apps:
+    /*
+    if (deviceInfo.isAndroid) {
+      // Redirect to Google Play Store
+      window.location.href = 'https://play.google.com/store/apps/details?id=com.ecosync.wastemanagement';
+      return {
+        success: true,
+        message: 'Redirecting to Google Play Store...',
+        platform: 'android'
+      };
+    }
     
-    // Create download URL
-    const downloadUrl = URL.createObjectURL(apkBlob);
+    if (deviceInfo.isIOS) {
+      // Redirect to Apple App Store
+      window.location.href = 'https://apps.apple.com/app/ecosync-waste-management/id123456789';
+      return {
+        success: true,
+        message: 'Redirecting to Apple App Store...',
+        platform: 'ios'
+      };
+    }
+    */
     
-    // Create download link and trigger download
-    const link = document.createElement('a');
-    link.href = downloadUrl;
-    link.download = 'EcoSync-v2.1.0.apk';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    // For development/testing: Direct APK download
+    // This simulates downloading the actual app for Android
+    if (deviceInfo.isAndroid || !deviceInfo.isMobile) {
+      // Simulate server processing
+      await new Promise(resolve => setTimeout(resolve, 800));
+      
+      // Generate the APK file
+      const apkBlob = generateAPKContent();
+      
+      // Create download URL
+      const downloadUrl = URL.createObjectURL(apkBlob);
+      
+      // For mobile devices, use a more reliable download method
+      if (deviceInfo.isMobile) {
+        // Create a temporary link and trigger download
+        const link = document.createElement('a');
+        link.href = downloadUrl;
+        link.download = 'EcoSync-v2.1.0.apk';
+        link.setAttribute('target', '_blank');
+        
+        // For Android, we need to handle the download more carefully
+        document.body.appendChild(link);
+        link.click();
+        
+        // Clean up
+        setTimeout(() => {
+          document.body.removeChild(link);
+          URL.revokeObjectURL(downloadUrl);
+        }, 1000);
+        
+      } else {
+        // Desktop download
+        const link = document.createElement('a');
+        link.href = downloadUrl;
+        link.download = 'EcoSync-v2.1.0.apk';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        
+        // Clean up the URL after download starts
+        setTimeout(() => URL.revokeObjectURL(downloadUrl), 1000);
+      }
+      
+      // Update download statistics
+      updateDownloadStats(deviceInfo.platform);
+      
+      return {
+        success: true,
+        message: deviceInfo.isAndroid 
+          ? 'APK download started! Please check your downloads folder and install the app.' 
+          : 'APK download started! Transfer to your Android device to install.',
+        downloadUrl,
+        fileName: 'EcoSync-v2.1.0.apk',
+        platform: deviceInfo.platform
+      };
+    }
     
-    // Clean up the URL after download starts
-    setTimeout(() => URL.revokeObjectURL(downloadUrl), 1000);
-    
-    // Update download statistics
-    updateDownloadStats();
+    // iOS users without App Store link
+    if (deviceInfo.isIOS) {
+      return {
+        success: false,
+        message: 'iOS version coming soon! Please check back later or use the web version.',
+        platform: 'ios'
+      };
+    }
     
     return {
-      success: true,
-      message: 'Download started successfully!',
-      downloadUrl,
-      fileName: 'EcoSync-v2.1.0.apk'
+      success: false,
+      message: 'Unsupported platform',
+      platform: deviceInfo.platform
     };
+    
   } catch (error) {
     console.error('Download error:', error);
     return {
@@ -162,4 +266,4 @@ export const openYouTubeDemo = (): void => {
   window.open(YOUTUBE_DEMO_URL, '_blank', 'noopener,noreferrer');
 };
 
-export type { DownloadStats, DownloadResponse };
+export type { DownloadStats, DownloadResponse, DeviceInfo };
