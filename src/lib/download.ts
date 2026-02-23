@@ -121,7 +121,7 @@ export const detectDevice = (): DeviceInfo => {
 // 3. SET THE URL BELOW:
 //    Replace the empty string with your actual APK download URL
 //
-const APK_DOWNLOAD_URL = 'https://github.com/yourusername/smart-waste-management-app/releases/download/v2.1.0/EcoSync-v2.1.0.apk';  // ⬅️ UPDATE THIS
+const APK_DOWNLOAD_URL = '';  // ⬅️ UPDATE THIS with your hosted APK URL
 
 // IMPORTANT NOTES:
 // - The URL must be a direct download link (not a preview page)
