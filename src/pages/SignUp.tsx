@@ -128,10 +128,17 @@ export function SignUp({ onSuccess, onSwitchToSignIn, onBack }: SignUpProps) {
     setIsLoading(true);
     try {
       const res = await signUp(name, email, password);
-      if (res.success || res.requiresVerification) {
-        setPendingEmail(res.email || email.toLowerCase());
-        setStep('otp');
-        setResendCooldown(60);
+      if (res.success) {
+        // Auto-verified account - login directly
+        if (res.token && res.user) {
+          setSuccess('Account created successfully! Logging you in...');
+          setTimeout(() => onSuccess(), 1000);
+        } else if (res.requiresVerification) {
+          // OTP verification needed
+          setPendingEmail(res.email || email.toLowerCase());
+          setStep('otp');
+          setResendCooldown(60);
+        }
         setError('');
       } else {
         setError(res.message);

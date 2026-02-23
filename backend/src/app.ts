@@ -13,7 +13,7 @@ const app = express();
 
 // ─── Global Middleware ────────────────────────────────────────────────────────
 // CORS configuration - allow multiple origins
-const allowedOrigins = process.env.CORS_ORIGIN?.split(',') ?? ['http://localhost:5173'];
+const allowedOrigins = process.env.CORS_ORIGIN?.split(',').map(o => o.trim()) ?? ['http://localhost:5173'];
 app.use(cors({
   origin: (origin, callback) => {
     // Allow requests with no origin (mobile apps, Postman, etc.)

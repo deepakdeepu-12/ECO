@@ -8,7 +8,8 @@ export const env = {
   JWT_SECRET:    process.env.JWT_SECRET    ?? '',
   GEMINI_API_KEY: process.env.GEMINI_API_KEY ?? '',
   EMAIL_USER:    process.env.EMAIL_USER    ?? '',
-  EMAIL_PASS:    process.env.EMAIL_PASS    ?? '',
+  EMAIL_PASSWORD: process.env.EMAIL_PASSWORD ?? '',
+  EMAIL_FROM:    process.env.EMAIL_FROM    ?? '',
   NODE_ENV:      process.env.NODE_ENV      ?? 'development',
 } as const;
 

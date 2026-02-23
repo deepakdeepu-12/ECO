@@ -42,19 +42,12 @@ export const comparePassword = (plain: string, hash: string) => bcrypt.compare(p
 
 const getTransporter = () => {
   return nodemailer.createTransport({
-    host: 'smtp.gmail.com',
-    port: 587,
-    secure: false, // Use STARTTLS
+    service: 'gmail',
     auth: {
       user: process.env.EMAIL_USER,
       pass: process.env.EMAIL_PASSWORD,
     },
-    tls: {
-      rejectUnauthorized: true,
-    },
-    // Force IPv4 to avoid IPv6 connection issues on some hosting platforms
-    family: 4,
-  });
+  } as nodemailer.TransportOptions);
 };
 
 /** Returns true if the email was sent, false on any error. */
@@ -63,11 +56,25 @@ export const sendOTPEmail = async (
   name: string,
   otp: string
 ): Promise<boolean> => {
+  // Skip email sending in dev mode if credentials are placeholders
+  const isDevMode = !process.env.EMAIL_PASSWORD || 
+                     process.env.EMAIL_PASSWORD === 'your_gmail_app_password_here';
+  
+  if (isDevMode) {
+    console.log(`\n📧 OTP for ${email}: ${otp}`);
+    console.log(`⚠️  Email not sent (dev mode - update EMAIL_PASSWORD in .env)\n`);
+    return false;
+  }
+
   try {
     const from = process.env.EMAIL_FROM ?? 'EcoSync <noreply@ecosync.com>';
     const transporter = getTransporter();
     
-    await transporter.sendMail({
+    // Log OTP to console as backup
+    console.log(`\n📧 Sending OTP to ${email}: ${otp}`);
+    
+    // Add timeout to prevent long waits
+    const sendPromise = transporter.sendMail({
       from,
       to: email,
       subject: 'EcoSync – Your Verification Code',
@@ -124,9 +131,17 @@ export const sendOTPEmail = async (
     `,
     });
     
+    // Add 10-second timeout
+    const timeoutPromise = new Promise<never>((_, reject) => 
+      setTimeout(() => reject(new Error('Email timeout')), 10000)
+    );
+    
+    await Promise.race([sendPromise, timeoutPromise]);
+    console.log(`✅ OTP email sent to ${email}`);
     return true;
   } catch (err) {
     console.error('⚠️  Email error (not sent):', (err as Error).message);
+    console.log(`📧 OTP for ${email}: ${otp} (check server logs)\n`);
     return false;
   }
 };

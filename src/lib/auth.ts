@@ -42,8 +42,8 @@ const clearSession = (): void => {
 };
 
 // ─── Register ─────────────────────────────────────────────────────────────────
-// Creates account and sends OTP to email.
-// On success, requiresVerification=true — redirect to OTP screen.
+// Creates account. If auto-verified, stores JWT + user and returns token.
+// If verification required, returns requiresVerification=true.
 
 export const signUp = async (
   name: string,
@@ -58,6 +58,12 @@ export const signUp = async (
     });
 
     const data = await res.json();
+    
+    // Auto-verified - store session
+    if (data.success && data.token && data.user) {
+      setSession(data.token, data.user);
+    }
+    
     return data;
   } catch {
     return { success: false, message: 'Cannot connect to server. Is the backend running?' };

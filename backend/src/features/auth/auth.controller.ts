@@ -34,26 +34,40 @@ export const register = async (req: Request, res: Response): Promise<Response> =
         return res.status(409).json({ success: false, message: 'An account with this email already exists.' });
       }
       const otp = generateOTP();
-      inMemoryUsers.set(emailLower, {
-        id: `user_${Date.now()}`,
+      const userId = `user_${Date.now()}`;
+      const newUser = {
+        id: userId,
         name: name.trim(),
         email: emailLower,
         password: await hashPassword(password),
         otp,
         otpExpires: Date.now() + 5 * 60 * 1000,
-        isVerified: false,
+        isVerified: true, // Auto-verify for direct login
         greenPoints: 100,
         totalRecycled: 0,
         carbonSaved: 0,
         level: 'Seedling',
         joinedDate: new Date().toISOString(),
-      });
-      console.log(`📧 OTP for ${emailLower}: ${otp} (in-memory mode, email not sent)`);
+      };
+      inMemoryUsers.set(emailLower, newUser);
+      console.log(`✅ Account created for ${emailLower} (auto-verified)`);
       return res.status(201).json({
         success: true,
-        message: `Account created! Your OTP is: ${otp} (in-memory mode)`,
-        requiresVerification: true,
+        message: 'Account created successfully! You can now sign in.',
+        requiresVerification: false,
         email: emailLower,
+        token: signToken(userId),
+        user: {
+          id: newUser.id,
+          name: newUser.name,
+          email: newUser.email,
+          isVerified: newUser.isVerified,
+          greenPoints: newUser.greenPoints,
+          totalRecycled: newUser.totalRecycled,
+          carbonSaved: newUser.carbonSaved,
+          level: newUser.level,
+          joinedDate: newUser.joinedDate,
+        },
       });
     }
 
@@ -61,19 +75,21 @@ export const register = async (req: Request, res: Response): Promise<Response> =
     const existingUser = await User.findOne({ email: emailLower });
     if (existingUser) {
       if (!existingUser.isVerified) {
-        const otp = generateOTP();
-        existingUser.otp = otp;
-        existingUser.otpExpires = new Date(Date.now() + 5 * 60 * 1000);
+        // Auto-verify existing unverified accounts for direct login
+        existingUser.isVerified = true;
+        existingUser.otp = null;
+        existingUser.otpExpires = null;
         await existingUser.save();
-        void sendOTPEmail(existingUser.email, existingUser.name, otp);
         return res.status(200).json({
           success: true,
-          message: 'Account already exists but is unverified. A new OTP has been sent.',
-          requiresVerification: true,
+          message: 'Account already exists. You can now sign in directly.',
+          requiresVerification: false,
           email: existingUser.email,
+          token: signToken(existingUser._id),
+          user: existingUser.toSafeObject(),
         });
       }
-      return res.status(409).json({ success: false, message: 'An account with this email already exists.' });
+      return res.status(409).json({ success: false, message: 'An account with this email already exists. Please sign in.' });
     }
 
     const otp = generateOTP();
@@ -84,16 +100,18 @@ export const register = async (req: Request, res: Response): Promise<Response> =
       otp,
       otpExpires: new Date(Date.now() + 5 * 60 * 1000),
       greenPoints: 100,
+      isVerified: true, // Auto-verify for direct login
     });
-    const emailSent = await sendOTPEmail(user.email, user.name, otp);
+    // Optional: still send OTP email for reference
+    void sendOTPEmail(user.email, user.name, otp);
 
     return res.status(201).json({
       success: true,
-      message: emailSent
-        ? 'Account created! Please check your email for the 6-digit verification code.'
-        : 'Account created! (Email delivery failed — check server logs for your OTP)',
-      requiresVerification: true,
+      message: 'Account created successfully! You can now sign in.',
+      requiresVerification: false,
       email: user.email,
+      token: signToken(user._id),
+      user: user.toSafeObject(),
     });
   } catch (error) {
     const err = error as NodeJS.ErrnoException & { code?: string };
@@ -222,18 +240,13 @@ export const login = async (req: Request, res: Response): Promise<Response> => {
       const user = inMemoryUsers.get(emailLower);
       if (!user) return res.status(401).json({ success: false, message: 'No account found with this email address.' });
 
-      if (!user.isVerified) {
-        const otp = generateOTP();
-        user.otp = otp;
-        user.otpExpires = Date.now() + 5 * 60 * 1000;
-        console.log(`📧 New OTP for ${emailLower}: ${otp} (in-memory mode)`);
-        return res.status(403).json({
-          success: false,
-          message: `Email not verified. Your new OTP is: ${otp}`,
-          requiresVerification: true,
-          email: user.email,
-        });
-      }
+      // Email verification check disabled for direct login
+      // if (!user.isVerified) {
+      //   return res.status(403).json({
+      //     success: false,
+      //     message: 'Please verify your email before signing in. Check your inbox for the verification code.',
+      //   });
+      // }
 
       const isMatch = await comparePassword(password, user.password);
       if (!isMatch) return res.status(401).json({ success: false, message: 'Incorrect password. Please try again.' });
@@ -259,19 +272,13 @@ export const login = async (req: Request, res: Response): Promise<Response> => {
     const user = await User.findOne({ email: emailLower }).select('+password');
     if (!user) return res.status(401).json({ success: false, message: 'No account found with this email address.' });
 
-    if (!user.isVerified) {
-      const otp = generateOTP();
-      user.otp = otp;
-      user.otpExpires = new Date(Date.now() + 5 * 60 * 1000);
-      await user.save();
-      void sendOTPEmail(user.email, user.name, otp);
-      return res.status(403).json({
-        success: false,
-        message: 'Email not verified. A new code has been sent to your email.',
-        requiresVerification: true,
-        email: user.email,
-      });
-    }
+    // Email verification check disabled for direct login
+    // if (!user.isVerified) {
+    //   return res.status(403).json({
+    //     success: false,
+    //     message: 'Please verify your email before signing in. Check your inbox for the verification code or sign up again.',
+    //   });
+    // }
 
     const isMatch = await comparePassword(password, user.password);
     if (!isMatch) return res.status(401).json({ success: false, message: 'Incorrect password. Please try again.' });
