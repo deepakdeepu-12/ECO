@@ -110,7 +110,7 @@ export function PrivacySecurityModal({ isOpen, onClose, user, onAccountDeleted }
                                     <p className="text-gray-400 text-xs">Manage password & account</p>
                                 </div>
                             </div>
-                            <button onClick={onClose} className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-white hover:bg-gray-800 rounded-full transition-colors">
+                            <button onClick={onClose} className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-white hover:bg-gray-800 rounded-full transition-colors" aria-label="Close privacy and security settings">
                                 <X className="w-4 h-4" />
                             </button>
                         </div>
@@ -267,4 +267,3 @@ export function PrivacySecurityModal({ isOpen, onClose, user, onAccountDeleted }
         </AnimatePresence>
     );
 }
-const APK_DOWNLOAD_URL = 'https://your-server.com/EcoSync-v2.1.0.apk';

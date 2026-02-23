@@ -7,6 +7,7 @@ A full-stack, AI-powered smart waste management web application that helps users
 ## Table of Contents
 
 - [Features](#features)
+- [📱 App Downloads](#-app-downloads)
 - [Tech Stack](#tech-stack)
 - [Project Structure](#project-structure)
 - [Getting Started](#getting-started)
@@ -35,6 +36,52 @@ A full-stack, AI-powered smart waste management web application that helps users
 | **Profile Dashboard** | Personal stats, achievements, and account management |
 | **Help & Support** | In-app FAQ and support ticket submission |
 | **Privacy & Security** | Account privacy controls and security settings |
+
+---
+
+## 📱 App Downloads
+
+EcoSync supports **native Android app downloads** (APK) in addition to the web version!
+
+### 🚀 For Users
+
+The app can be installed directly on Android devices:
+- Click "Install App" on the landing page
+- Download and install the APK
+- Works offline with full native app experience
+
+### 🛠️ For Developers
+
+To enable APK downloads for your users:
+
+1. **Build the Android APK**
+   ```bash
+   ./build-apk.bat  # Windows
+   # OR
+   npm run build && npx cap add android && npx cap open android
+   ```
+
+2. **Host it online** (GitHub Releases, S3, Google Drive, etc.)
+
+3. **Configure the download URL** in `src/lib/download.ts`:
+   ```typescript
+   const APK_DOWNLOAD_URL = 'https://your-url.com/EcoSync-v2.1.0.apk';
+   ```
+
+4. **Redeploy** your web app
+
+**📖 Detailed Guides:**
+- **Quick Start:** [ENABLE_APP_DOWNLOADS.md](ENABLE_APP_DOWNLOADS.md)
+- **Complete Guide:** [APK_BUILD_GUIDE.md](APK_BUILD_GUIDE.md)
+- **Build Script:** `build-apk.bat` (Windows automated builder)
+
+### ✨ Features
+
+- ✅ Auto device detection (Android/iOS/Desktop)
+- ✅ Smart download button (APK for Android, PWA for others)
+- ✅ Download counter & statistics
+- ✅ Offline support via Progressive Web App
+- ✅ Platform-specific installation instructions
 
 ---
 
@@ -74,8 +121,13 @@ smart-waste-management-app/
 ├── package.json          # Frontend dependencies
 ├── tsconfig.json
 ├── vite.config.ts
+├── capacitor.config.ts   # Mobile app configuration
 ├── start.bat             # One-click launcher (Windows)
+├── build-apk.bat         # APK builder script (Windows)
 ├── .env                  # Frontend environment variables
+├── README.md             # This file
+├── ENABLE_APP_DOWNLOADS.md   # Quick guide to enable APK downloads
+├── APK_BUILD_GUIDE.md    # Complete APK build & distribution guide
 │
 ├── src/
 │   ├── main.tsx

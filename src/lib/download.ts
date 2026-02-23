@@ -83,9 +83,52 @@ export const detectDevice = (): DeviceInfo => {
   };
 };
 
-// Configuration: Set your actual APK download URL here
-// Replace this with your real APK hosted on a server, CDN, or file hosting service
-const APK_DOWNLOAD_URL = ''; // e.g., 'https://your-domain.com/downloads/EcoSync-v2.1.0.apk'
+// ═══════════════════════════════════════════════════════════════════════════════
+// APK DOWNLOAD CONFIGURATION
+// ═══════════════════════════════════════════════════════════════════════════════
+// 
+// To enable direct APK downloads for Android users:
+// 
+// 1. BUILD YOUR APK:
+//    - Run: npm run build
+//    - Then use Capacitor to build Android APK:
+//      * npx cap add android
+//      * npx cap sync
+//      * npx cap open android
+//      * Build APK in Android Studio
+//
+// 2. HOST YOUR APK FILE:
+//    Option A: GitHub Releases (Free, recommended)
+//      - Go to your GitHub repo → Releases → Create new release
+//      - Upload your APK file (e.g., EcoSync-v2.1.0.apk)
+//      - Use the direct download URL from the release
+//      - Example: https://github.com/username/repo/releases/download/v2.1.0/EcoSync-v2.1.0.apk
+//
+//    Option B: CloudFlare R2 / AWS S3 (Free tier available)
+//      - Upload APK to cloud storage
+//      - Make the file public
+//      - Copy the public URL
+//
+//    Option C: Your own server
+//      - Upload APK to your web server's public directory
+//      - Example: https://yourdomain.com/downloads/EcoSync-v2.1.0.apk
+//
+//    Option D: File hosting services
+//      - Google Drive (make link public)
+//      - Dropbox (create public link)
+//      - MediaFire, MEGA, etc.
+//
+// 3. SET THE URL BELOW:
+//    Replace the empty string with your actual APK download URL
+//
+const APK_DOWNLOAD_URL = 'https://github.com/yourusername/smart-waste-management-app/releases/download/v2.1.0/EcoSync-v2.1.0.apk';  // ⬅️ UPDATE THIS
+
+// IMPORTANT NOTES:
+// - The URL must be a direct download link (not a preview page)
+// - For GitHub releases, use the direct asset download URL
+// - For Google Drive, use: https://drive.google.com/uc?export=download&id=FILE_ID
+// - For Dropbox, change dl=0 to dl=1 in the sharing link
+// - Test the URL in a browser to ensure it downloads the APK directly
 
 // Check if we have a real APK to download
 const hasRealAPK = (): boolean => {
