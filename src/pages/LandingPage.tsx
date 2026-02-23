@@ -68,16 +68,14 @@ export function LandingPage({ onNavigate }: Props) {
       
       if (result.success) {
         setDownloadCount(prev => prev + 1);
-        // Download happens instantly, just show brief success message
-        setTimeout(() => {
-          alert('✅ Download complete! Check your downloads folder.\n\nOpen the file to access EcoSync.');
-        }, 100);
-      } else {
-        alert('❌ ' + result.message);
       }
+      
+      // Always show the message (install instructions or success)
+      alert(result.message);
+      
     } catch (error) {
-      console.error('Download failed:', error);
-      alert('Download failed. Please try again.');
+      console.error('Install failed:', error);
+      alert('Unable to install. Please add this page to your home screen manually.');
     } finally {
       setIsDownloading(false);
     }
@@ -187,9 +185,9 @@ export function LandingPage({ onNavigate }: Props) {
                   className="flex items-center justify-center gap-3 bg-gradient-to-r from-green-500 to-emerald-600 text-white px-8 py-4 rounded-2xl font-semibold hover:from-green-600 hover:to-emerald-700 transition-all shadow-lg shadow-green-500/25 disabled:opacity-70"
                 >
                   {isDownloading ? (
-                    <><Loader2 className="w-6 h-6 animate-spin" />Downloading...</>
+                    <><Loader2 className="w-6 h-6 animate-spin" />Installing...</>
                   ) : (
-                    <><Download className="w-6 h-6" />Download App</>
+                    <><Download className="w-6 h-6" />Install App</>
                   )}
                 </button>
                 <button
@@ -412,17 +410,17 @@ export function LandingPage({ onNavigate }: Props) {
             </p>
             {userDevice.isAndroid && (
               <p className="text-green-400 text-sm mb-6">
-                📱 Android device detected - Download the app package now!
+                📱 Android detected - Install the app now!
               </p>
             )}
             {userDevice.isIOS && (
               <p className="text-blue-400 text-sm mb-6">
-                📱 iOS device detected - Download the app package now!
+                📱 iOS detected - Add to your home screen!
               </p>
             )}
             {!userDevice.isMobile && (
               <p className="text-gray-400 text-sm mb-6">
-                💻 Download the web app package for easy mobile access
+                💻 Install as a desktop app for the best experience
               </p>
             )}
             <div className="flex flex-col sm:flex-row gap-4 justify-center mb-8">
@@ -432,10 +430,12 @@ export function LandingPage({ onNavigate }: Props) {
                 className="flex items-center justify-center gap-3 bg-white text-gray-900 px-8 py-4 rounded-2xl font-semibold hover:bg-gray-100 transition-all shadow-lg disabled:opacity-70"
               >
                 {isDownloading ? (
-                  <><Loader2 className="w-6 h-6 animate-spin" />Downloading...</>
+                  <><Loader2 className="w-6 h-6 animate-spin" />Installing...</>
                 ) : (
                   <><Download className="w-6 h-6" />
-                    {userDevice.isMobile ? 'Download App Package' : 'Download App Package'}
+                    {userDevice.isAndroid ? 'Install App' : 
+                     userDevice.isIOS ? 'Add to Home Screen' : 
+                     'Install App'}
                   </>
                 )}
               </button>
