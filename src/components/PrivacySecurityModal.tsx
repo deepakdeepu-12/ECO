@@ -267,5 +267,4 @@ export function PrivacySecurityModal({ isOpen, onClose, user, onAccountDeleted }
         </AnimatePresence>
     );
 }
-
 const APK_DOWNLOAD_URL = 'https://your-server.com/EcoSync-v2.1.0.apk';
