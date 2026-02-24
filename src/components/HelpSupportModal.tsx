@@ -96,7 +96,7 @@ export function HelpSupportModal({ isOpen, onClose, user }: HelpSupportModalProp
                                     <p className="text-gray-400 text-xs">FAQs and contact our team</p>
                                 </div>
                             </div>
-                            <button onClick={onClose} className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-white hover:bg-gray-800 rounded-full transition-colors">
+                            <button onClick={onClose} className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-white hover:bg-gray-800 rounded-full transition-colors" aria-label="Close help and support">
                                 <X className="w-4 h-4" />
                             </button>
                         </div>
@@ -178,6 +178,7 @@ export function HelpSupportModal({ isOpen, onClose, user }: HelpSupportModalProp
                                         value={category}
                                         onChange={e => setCategory(e.target.value)}
                                         className={`${inputClass} appearance-none`}
+                                        aria-label="Select issue category"
                                     >
                                         {CATEGORIES.map(c => (
                                             <option key={c} value={c} className="bg-gray-800">{c}</option>

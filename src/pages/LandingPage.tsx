@@ -496,7 +496,7 @@ export function LandingPage({ onNavigate }: Props) {
               <p className="text-gray-400 mb-4">Stay updated with eco-tips and app updates.</p>
               <div className="flex gap-2">
                 <input type="email" placeholder="Enter email" className="flex-1 bg-gray-800 border border-gray-700 rounded-xl px-4 py-2 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-green-500" />
-                <button className="bg-green-500 text-white px-4 py-2 rounded-xl hover:bg-green-600 transition-colors">
+                <button className="bg-green-500 text-white px-4 py-2 rounded-xl hover:bg-green-600 transition-colors" aria-label="Subscribe to newsletter">
                   <ArrowRight className="w-5 h-5" />
                 </button>
               </div>

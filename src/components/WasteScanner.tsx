@@ -199,6 +199,7 @@ export function WasteScanner({ isOpen, onClose, onScanComplete }: WasteScannerPr
                         <button
                             onClick={handleClose}
                             className="w-9 h-9 bg-gray-800 hover:bg-gray-700 rounded-xl flex items-center justify-center text-gray-400 hover:text-white transition-colors"
+                            aria-label="Close scanner"
                         >
                             <X className="w-5 h-5" />
                         </button>
@@ -207,7 +208,7 @@ export function WasteScanner({ isOpen, onClose, onScanComplete }: WasteScannerPr
                     {/* Camera Phase */}
                     {phase === 'camera' && (
                         <div>
-                            <div className="relative bg-black" style={{ aspectRatio: '4/3' }}>
+                            <div className="relative bg-black aspect-[4/3]">
                                 <video
                                     ref={videoRef}
                                     className="w-full h-full object-cover"
@@ -287,7 +288,7 @@ export function WasteScanner({ isOpen, onClose, onScanComplete }: WasteScannerPr
                     {phase === 'analyzing' && (
                         <div className="p-6">
                             {capturedImage && (
-                                <div className="relative rounded-2xl overflow-hidden mb-5" style={{ aspectRatio: '4/3' }}>
+                                <div className="relative rounded-2xl overflow-hidden mb-5 aspect-[4/3]">
                                     <img src={capturedImage} alt="Captured" className="w-full h-full object-cover" />
                                     <div className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center gap-4">
                                         <motion.div
@@ -364,10 +365,12 @@ export function WasteScanner({ isOpen, onClose, onScanComplete }: WasteScannerPr
                             <div className="grid grid-cols-2 gap-3">
                                 <div className="bg-gray-800/60 rounded-xl p-3">
                                     <p className="text-gray-400 text-xs mb-1">Category</p>
+                                    {/* eslint-disable-next-line react/forbid-dom-props */}
                                     <div
                                         className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-lg text-white text-xs font-semibold capitalize"
                                         style={{ backgroundColor: result.color + '33', border: `1px solid ${result.color}55` }}
                                     >
+                                        {/* eslint-disable-next-line react/forbid-dom-props */}
                                         <span style={{ color: result.color }}>●</span>
                                         {result.category}
                                     </div>

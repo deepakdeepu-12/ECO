@@ -101,7 +101,7 @@ export function NotificationsModal({ isOpen, onClose, user }: NotificationsModal
                                     <p className="text-gray-400 text-xs">Manage your alert preferences</p>
                                 </div>
                             </div>
-                            <button onClick={onClose} className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-white hover:bg-gray-800 rounded-full transition-colors">
+                            <button onClick={onClose} className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-white hover:bg-gray-800 rounded-full transition-colors" aria-label="Close notifications">
                                 <X className="w-4 h-4" />
                             </button>
                         </div>
@@ -126,6 +126,7 @@ export function NotificationsModal({ isOpen, onClose, user }: NotificationsModal
                                             onClick={() => toggle(key)}
                                             className={`relative w-12 h-6 rounded-full transition-colors duration-200 flex-shrink-0 ${prefs[key] ? 'bg-green-500' : 'bg-gray-600'
                                                 }`}
+                                            aria-label={`Toggle ${label}`}
                                         >
                                             <motion.span
                                                 layout
