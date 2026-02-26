@@ -28,6 +28,21 @@ app.use(cors({
 }));
 app.use(express.json({ limit: '20mb' }));
 
+// ─── Root Route ───────────────────────────────────────────────────────────────
+app.get('/', (_req, res) => {
+  res.json({
+    service: 'EcoSync AI Backend',
+    version: '1.0.0',
+    status: 'running',
+    endpoints: {
+      health: '/api/health',
+      classify: 'POST /api/classify',
+      auth: '/api/auth/*',
+      support: '/api/support/*',
+    }
+  });
+});
+
 // ─── Health Check ─────────────────────────────────────────────────────────────
 app.get('/api/health', (_req, res) => {
   const states = ['disconnected', 'connected', 'connecting', 'disconnecting'];
