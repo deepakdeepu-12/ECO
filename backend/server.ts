@@ -5,9 +5,10 @@ import { connectDB } from './src/config/db';
 const PORT = parseInt(process.env.PORT ?? '3001', 10);
 
 const start = async (): Promise<void> => {
-  await connectDB();
-
+  // Start server immediately, connect to MongoDB in background
   app.listen(PORT, () => {
+    // Connect to MongoDB after server is running
+    setImmediate(() => void connectDB());
     console.log(`\n?? EcoSync AI Backend running on http://localhost:${PORT}`);
     console.log(`?? Health:         GET  /api/health`);
     console.log(`?? Classify:       POST /api/classify`);

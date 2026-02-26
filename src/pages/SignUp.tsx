@@ -121,6 +121,12 @@ export function SignUp({ onSuccess, onSwitchToSignIn, onBack }: SignUpProps) {
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setSuccess('');
+    
+    // Client-side validation
+    if (!name?.trim()) { setError('Please enter your name.'); return; }
+    if (!email?.trim()) { setError('Please enter your email address.'); return; }
+    if (!password) { setError('Please enter a password.'); return; }
     if (password !== confirmPassword) { setError('Passwords do not match.'); return; }
     if (password.length < 6) { setError('Password must be at least 6 characters.'); return; }
     if (!agreedToTerms) { setError('Please agree to the Terms of Service.'); return; }
@@ -128,22 +134,23 @@ export function SignUp({ onSuccess, onSwitchToSignIn, onBack }: SignUpProps) {
     setIsLoading(true);
     try {
       const res = await signUp(name, email, password);
-      if (res.success) {
+      if (res?.success) {
         // Auto-verified account - login directly
         if (res.token && res.user) {
           setSuccess('Account created successfully! Logging you in...');
           setTimeout(() => onSuccess(), 1000);
         } else if (res.requiresVerification) {
           // OTP verification needed
-          setPendingEmail(res.email || email.toLowerCase());
+          setPendingEmail(res.email || email.toLowerCase().trim());
           setStep('otp');
           setResendCooldown(60);
         }
         setError('');
       } else {
-        setError(res.message);
+        setError(res?.message || 'Registration failed. Please try again.');
       }
-    } catch {
+    } catch (err) {
+      console.error('Registration error:', err);
       setError('An unexpected error occurred. Please try again.');
     } finally {
       setIsLoading(false);
@@ -154,17 +161,25 @@ export function SignUp({ onSuccess, onSwitchToSignIn, onBack }: SignUpProps) {
   const handleVerify = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    if (otp.replace(/\D/g, '').length !== 6) { setError('Please enter the complete 6-digit code.'); return; }
+    setSuccess('');
+    
+    const cleanOtp = otp?.replace(/\D/g, '') || '';
+    if (cleanOtp.length !== 6) { 
+      setError('Please enter the complete 6-digit code.'); 
+      return; 
+    }
+    
     setIsLoading(true);
     try {
-      const res = await verifyOTP(pendingEmail, otp.trim());
-      if (res.success) {
-        setSuccess('Email verified! Welcome to EcoSync ðŸŒ¿');
+      const res = await verifyOTP(pendingEmail, cleanOtp);
+      if (res?.success) {
+        setSuccess('Email verified! Welcome to EcoSync 🌿');
         setTimeout(() => onSuccess(), 1200);
       } else {
-        setError(res.message);
+        setError(res?.message || 'Verification failed. Please check the code.');
       }
-    } catch {
+    } catch (err) {
+      console.error('Verification error:', err);
       setError('Verification failed. Please try again.');
     } finally {
       setIsLoading(false);
@@ -175,18 +190,20 @@ export function SignUp({ onSuccess, onSwitchToSignIn, onBack }: SignUpProps) {
   const handleResend = async () => {
     if (resendCooldown > 0) return;
     setError('');
+    setSuccess('');
     setIsLoading(true);
     try {
       const res = await resendOTP(pendingEmail);
-      if (res.success) {
+      if (res?.success) {
         setSuccess('New code sent! Check your email.');
         setResendCooldown(60);
         setOtp('');
       } else {
-        setError(res.message);
+        setError(res?.message || 'Failed to resend code. Please try again.');
       }
-    } catch {
-      setError('Failed to resend code.');
+    } catch (err) {
+      console.error('Resend OTP error:', err);
+      setError('Failed to resend code. Please check your connection.');
     } finally {
       setIsLoading(false);
     }

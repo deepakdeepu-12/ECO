@@ -18,7 +18,8 @@ export const register = async (req: Request, res: Response): Promise<Response> =
       name: string; email: string; password: string;
     };
 
-    if (!name || !email || !password) {
+    // Validate input
+    if (!name?.trim() || !email?.trim() || !password) {
       return res.status(400).json({ success: false, message: 'Name, email and password are required.' });
     }
     if (password.length < 6) {
@@ -129,11 +130,12 @@ export const verifyOTP = async (req: Request, res: Response): Promise<Response> 
   try {
     const { email, otp } = req.body as { email: string; otp: string };
 
-    if (!email || !otp) {
+    // Validate input
+    if (!email?.trim() || !otp?.trim()) {
       return res.status(400).json({ success: false, message: 'Email and OTP are required.' });
     }
 
-    const emailLower = email.toLowerCase();
+    const emailLower = email.toLowerCase().trim();
     const mongoConnected = mongoose.connection.readyState === 1;
 
     if (!mongoConnected) {
@@ -199,9 +201,30 @@ export const verifyOTP = async (req: Request, res: Response): Promise<Response> 
 export const resendOTP = async (req: Request, res: Response): Promise<Response> => {
   try {
     const { email } = req.body as { email: string };
-    if (!email) return res.status(400).json({ success: false, message: 'Email is required.' });
+    if (!email?.trim()) return res.status(400).json({ success: false, message: 'Email is required.' });
 
-    const user = await User.findOne({ email: email.toLowerCase() });
+    const emailLower = email.toLowerCase().trim();
+    const mongoConnected = mongoose.connection.readyState === 1;
+
+    if (!mongoConnected) {
+      const user = inMemoryUsers.get(emailLower);
+      if (!user) return res.status(404).json({ success: false, message: 'No account found for this email.' });
+      if (user.isVerified) return res.status(400).json({ success: false, message: 'Account is already verified.' });
+
+      // Throttle: prevent spamming — must wait 60 s between resends
+      if (user.otpExpires && Date.now() < user.otpExpires - 4 * 60 * 1000) {
+        return res.status(429).json({ success: false, message: 'Please wait 60 seconds before requesting a new code.' });
+      }
+
+      const otp = generateOTP();
+      user.otp = otp;
+      user.otpExpires = Date.now() + 5 * 60 * 1000;
+      void sendOTPEmail(user.email, user.name, otp);
+
+      return res.status(200).json({ success: true, message: 'New verification code sent! Please check your email.' });
+    }
+
+    const user = await User.findOne({ email: emailLower });
     if (!user) return res.status(404).json({ success: false, message: 'No account found for this email.' });
     if (user.isVerified) return res.status(400).json({ success: false, message: 'Account is already verified.' });
 
@@ -229,24 +252,27 @@ export const login = async (req: Request, res: Response): Promise<Response> => {
   try {
     const { email, password } = req.body as { email: string; password: string };
 
-    if (!email || !password) {
+    // Validate input
+    if (!email?.trim() || !password) {
       return res.status(400).json({ success: false, message: 'Email and password are required.' });
     }
 
-    const emailLower = email.toLowerCase();
+    const emailLower = email.toLowerCase().trim();
     const mongoConnected = mongoose.connection.readyState === 1;
 
     if (!mongoConnected) {
       const user = inMemoryUsers.get(emailLower);
       if (!user) return res.status(401).json({ success: false, message: 'No account found with this email address.' });
 
-      // Email verification check disabled for direct login
-      // if (!user.isVerified) {
-      //   return res.status(403).json({
-      //     success: false,
-      //     message: 'Please verify your email before signing in. Check your inbox for the verification code.',
-      //   });
-      // }
+      // Require email verification before login
+      if (!user.isVerified) {
+        return res.status(403).json({
+          success: false,
+          message: 'Please verify your email before signing in. Check your inbox for the verification code.',
+          requiresVerification: true,
+          email: user.email,
+        });
+      }
 
       const isMatch = await comparePassword(password, user.password);
       if (!isMatch) return res.status(401).json({ success: false, message: 'Incorrect password. Please try again.' });
@@ -272,13 +298,15 @@ export const login = async (req: Request, res: Response): Promise<Response> => {
     const user = await User.findOne({ email: emailLower }).select('+password');
     if (!user) return res.status(401).json({ success: false, message: 'No account found with this email address.' });
 
-    // Email verification check disabled for direct login
-    // if (!user.isVerified) {
-    //   return res.status(403).json({
-    //     success: false,
-    //     message: 'Please verify your email before signing in. Check your inbox for the verification code or sign up again.',
-    //   });
-    // }
+    // Require email verification before login
+    if (!user.isVerified) {
+      return res.status(403).json({
+        success: false,
+        message: 'Please verify your email before signing in. Check your inbox for the verification code or sign up again.',
+        requiresVerification: true,
+        email: user.email,
+      });
+    }
 
     const isMatch = await comparePassword(password, user.password);
     if (!isMatch) return res.status(401).json({ success: false, message: 'Incorrect password. Please try again.' });

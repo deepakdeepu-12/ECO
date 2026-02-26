@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { SignIn }       from './pages/SignIn';
 import { SignUp }       from './pages/SignUp';
 import { Dashboard }   from './pages/Dashboard';
@@ -8,11 +8,11 @@ import { isAuthenticated } from './lib/auth';
 type Page = 'home' | 'signin' | 'signup' | 'dashboard';
 
 export function App() {
-  const [currentPage, setCurrentPage] = useState<Page>('home');
+  const [currentPage, setCurrentPage] = useState<Page>(() => 
+    isAuthenticated() ? 'dashboard' : 'home'
+  );
 
-  useEffect(() => {
-    if (isAuthenticated()) setCurrentPage('dashboard');
-  }, []);
+  // No useEffect needed - auth check is synchronous
 
   if (currentPage === 'signin') {
     return (

@@ -10,9 +10,16 @@ dns.setDefaultResultOrder('ipv4first');
  * serve in-memory fallback mode if the DB is unreachable.
  */
 export const connectDB = async (): Promise<void> => {
+  // Skip connection if MongoDB URI is not configured
+  const uri = process.env.MONGODB_URI;
+  if (!uri || uri.includes('<username>') || uri.includes('<password>')) {
+    console.warn('⚠️  MongoDB URI not configured — using in-memory storage');
+    return;
+  }
+
   try {
-    await mongoose.connect(process.env.MONGODB_URI as string, {
-      serverSelectionTimeoutMS: 10000,   // 10 s to pick a server
+    await mongoose.connect(uri, {
+      serverSelectionTimeoutMS: 500,     // 500ms timeout for instant fallback
       socketTimeoutMS:          45000,   // close sockets after 45 s inactivity
       family:                   4,       // force IPv4 — avoids IPv6 SRV issues
     });

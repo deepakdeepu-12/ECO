@@ -13,6 +13,7 @@ import {
     Trash2,
     Leaf,
 } from 'lucide-react';
+import { addWasteRecycled } from '../lib/download';
 
 interface ClassificationResult {
     wasteType: string;
@@ -145,6 +146,13 @@ export function WasteScanner({ isOpen, onClose, onScanComplete }: WasteScannerPr
 
             setResult(json.data);
             setPhase('result');
+            
+            // Track recycled waste if item is recyclable
+            if (json.data.recyclable) {
+                // Average waste item weight: 0.5 kg for recyclables
+                addWasteRecycled(0.5);
+            }
+            
             onScanComplete?.(json.data);
         } catch (err: unknown) {
             const msg = err instanceof Error ? err.message : 'Something went wrong';

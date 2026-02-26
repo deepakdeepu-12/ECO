@@ -6,6 +6,8 @@ interface DownloadStats {
   androidDownloads: number;
   iosDownloads: number;
   lastDownloadTime: string;
+  activeUsers: number;
+  wasteRecycledKg: number;
 }
 
 interface DownloadResponse {
@@ -43,11 +45,14 @@ const getDownloadStats = (): DownloadStats => {
   if (stats) {
     return JSON.parse(stats);
   }
+  // Initial values (starts from 0)
   return {
-    totalDownloads: 125847,
-    androidDownloads: 98654,
-    iosDownloads: 27193,
-    lastDownloadTime: new Date().toISOString()
+    totalDownloads: 0,
+    androidDownloads: 0,
+    iosDownloads: 0,
+    lastDownloadTime: new Date().toISOString(),
+    activeUsers: 0,
+    wasteRecycledKg: 0
   };
 };
 
@@ -60,6 +65,10 @@ const updateDownloadStats = (platform: 'android' | 'ios' | 'web'): void => {
     stats.iosDownloads += 1;
   }
   stats.lastDownloadTime = new Date().toISOString();
+  
+  // Automatically update active users (40% conversion rate from downloads)
+  stats.activeUsers = Math.floor(stats.totalDownloads * 0.4);
+  
   localStorage.setItem('ecosync_download_stats', JSON.stringify(stats));
 };
 
@@ -263,6 +272,39 @@ export const downloadApp = async (): Promise<DownloadResponse> => {
 export const getDownloadCount = (): number => {
   const stats = getDownloadStats();
   return stats.totalDownloads;
+};
+
+// Get active users count (calculated from downloads)
+export const getActiveUsers = (): number => {
+  const stats = getDownloadStats();
+  // 40% of downloads become active users
+  return Math.floor(stats.totalDownloads * 0.4);
+};
+
+// Get waste recycled in kg
+export const getWasteRecycled = (): number => {
+  const stats = getDownloadStats();
+  return stats.wasteRecycledKg;
+};
+
+// Increment waste recycled (called when user completes recycling tasks)
+export const addWasteRecycled = (kg: number): number => {
+  const stats = getDownloadStats();
+  stats.wasteRecycledKg += kg;
+  localStorage.setItem('ecosync_download_stats', JSON.stringify(stats));
+  return stats.wasteRecycledKg;
+};
+
+// Format number with K, M suffixes
+export const formatStatNumber = (num: number): string => {
+  if (num === 0) return '0';
+  if (num >= 1000000) {
+    return (num / 1000000).toFixed(1) + 'M';
+  }
+  if (num >= 1000) {
+    return (num / 1000).toFixed(num >= 10000 ? 0 : 1) + 'K';
+  }
+  return num.toString();
 };
 
 // YouTube Demo Video URL

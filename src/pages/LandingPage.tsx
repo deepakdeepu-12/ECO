@@ -16,7 +16,7 @@ import { RecyclingRewards }    from '../components/RecyclingRewards';
 import { ImpactDashboard }     from '../components/ImpactDashboard';
 import { CommunityChallenges } from '../components/CommunityChallenges';
 import { IllegalDumpReporting } from '../components/IllegalDumpReporting';
-import { downloadApp, getDownloadCount, detectDevice } from '../lib/download';
+import { downloadApp, getDownloadCount, getActiveUsers, getWasteRecycled, addWasteRecycled, formatStatNumber, detectDevice } from '../lib/download';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -58,6 +58,8 @@ export function LandingPage({ onNavigate }: Props) {
   const [isDumpReportOpen,    setIsDumpReportOpen]    = useState(false);
   const [isDownloading,       setIsDownloading]       = useState(false);
   const [downloadCount,       setDownloadCount]       = useState(() => getDownloadCount());
+  const [activeUsers,         setActiveUsers]         = useState(() => getActiveUsers());
+  const [wasteRecycled,       setWasteRecycled]       = useState(() => getWasteRecycled());
   const [mobileMenuOpen,      setMobileMenuOpen]      = useState(false);
   const userDevice = detectDevice();
 
@@ -67,7 +69,13 @@ export function LandingPage({ onNavigate }: Props) {
       const result = await downloadApp();
       
       if (result.success) {
-        setDownloadCount(prev => prev + 1);
+        const newDownloads = downloadCount + 1;
+        setDownloadCount(newDownloads);
+        // Update active users (40% conversion rate)
+        setActiveUsers(Math.floor(newDownloads * 0.4));
+        // Add initial waste recycled for new user (average 5kg)
+        const newWaste = addWasteRecycled(5);
+        setWasteRecycled(newWaste);
       }
       
       // Always show the message (install instructions or success)
@@ -198,9 +206,24 @@ export function LandingPage({ onNavigate }: Props) {
                 </button>
               </div>
               <div className="flex flex-wrap gap-8">
-                <div><p className="text-3xl font-bold text-white">{downloadCount.toLocaleString()}+</p><p className="text-gray-400">Downloads</p></div>
-                <div><p className="text-3xl font-bold text-white">50K+</p><p className="text-gray-400">Active Users</p></div>
-                <div><p className="text-3xl font-bold text-white">2.5M kg</p><p className="text-gray-400">Waste Recycled</p></div>
+                <div>
+                  <p className="text-3xl font-bold text-white">
+                    {downloadCount === 0 ? '0' : `${formatStatNumber(downloadCount)}+`}
+                  </p>
+                  <p className="text-gray-400">Downloads</p>
+                </div>
+                <div>
+                  <p className="text-3xl font-bold text-white">
+                    {activeUsers === 0 ? '0' : `${formatStatNumber(activeUsers)}+`}
+                  </p>
+                  <p className="text-gray-400">Active Users</p>
+                </div>
+                <div>
+                  <p className="text-3xl font-bold text-white">
+                    {wasteRecycled === 0 ? '0' : `${formatStatNumber(wasteRecycled)} kg`}
+                  </p>
+                  <p className="text-gray-400">Waste Recycled</p>
+                </div>
               </div>
             </motion.div>
 

@@ -54,8 +54,12 @@ export const signUp = async (
     const res = await fetch(`${API_BASE}/register`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, email, password }),
+      body: JSON.stringify({ name: name?.trim(), email: email?.trim(), password }),
     });
+
+    if (!res.ok && res.status >= 500) {
+      return { success: false, message: 'Server error. Please try again in a moment.' };
+    }
 
     const data = await res.json();
     
@@ -65,8 +69,9 @@ export const signUp = async (
     }
     
     return data;
-  } catch {
-    return { success: false, message: 'Cannot connect to server. Is the backend running?' };
+  } catch (err) {
+    console.error('SignUp error:', err);
+    return { success: false, message: 'Cannot connect to server. Please check your internet connection.' };
   }
 };
 
@@ -78,8 +83,12 @@ export const verifyOTP = async (email: string, otp: string): Promise<AuthRespons
     const res = await fetch(`${API_BASE}/verify-otp`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, otp }),
+      body: JSON.stringify({ email: email?.trim(), otp: otp?.trim() }),
     });
+
+    if (!res.ok && res.status >= 500) {
+      return { success: false, message: 'Server error. Please try again.' };
+    }
 
     const data = await res.json();
 
@@ -88,8 +97,9 @@ export const verifyOTP = async (email: string, otp: string): Promise<AuthRespons
     }
 
     return data;
-  } catch {
-    return { success: false, message: 'Cannot connect to server. Is the backend running?' };
+  } catch (err) {
+    console.error('VerifyOTP error:', err);
+    return { success: false, message: 'Cannot connect to server. Please check your connection.' };
   }
 };
 
@@ -100,11 +110,17 @@ export const resendOTP = async (email: string): Promise<AuthResponse> => {
     const res = await fetch(`${API_BASE}/resend-otp`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email }),
+      body: JSON.stringify({ email: email?.trim() }),
     });
+    
+    if (!res.ok && res.status >= 500) {
+      return { success: false, message: 'Server error. Please try again.' };
+    }
+    
     return await res.json();
-  } catch {
-    return { success: false, message: 'Cannot connect to server.' };
+  } catch (err) {
+    console.error('ResendOTP error:', err);
+    return { success: false, message: 'Cannot connect to server. Please check your connection.' };
   }
 };
 
@@ -116,8 +132,12 @@ export const signIn = async (email: string, password: string): Promise<AuthRespo
     const res = await fetch(`${API_BASE}/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password }),
+      body: JSON.stringify({ email: email?.trim(), password }),
     });
+
+    if (!res.ok && res.status >= 500) {
+      return { success: false, message: 'Server error. Please try again in a moment.' };
+    }
 
     const data = await res.json();
 
@@ -126,8 +146,9 @@ export const signIn = async (email: string, password: string): Promise<AuthRespo
     }
 
     return data;
-  } catch {
-    return { success: false, message: 'Cannot connect to server. Is the backend running?' };
+  } catch (err) {
+    console.error('SignIn error:', err);
+    return { success: false, message: 'Cannot connect to server. Please check your internet connection.' };
   }
 };
 

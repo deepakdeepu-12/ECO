@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { motion } from 'framer-motion';
+import { useState, useEffect, useRef } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   Mail,
   Lock,
@@ -10,8 +10,76 @@ import {
   AlertCircle,
   CheckCircle,
   Loader2,
+  ShieldCheck,
+  RefreshCw,
 } from 'lucide-react';
-import { signIn } from '../lib/auth';
+import { signIn, verifyOTP, resendOTP } from '../lib/auth';
+
+// ─── OTP Input ────────────────────────────────────────────────────────────────
+interface OTPInputProps {
+  value: string;
+  onChange: (v: string) => void;
+  disabled?: boolean;
+}
+
+function OTPInput({ value, onChange, disabled }: OTPInputProps) {
+  const inputs = useRef<(HTMLInputElement | null)[]>([]);
+  const digits = Array.from({ length: 6 }, (_, i) => value[i] ?? '');
+
+  const handleChange = (index: number, char: string) => {
+    const digit = char.replace(/\D/g, '').slice(-1);
+    const next = [...digits];
+    next[index] = digit;
+    onChange(next.join(''));
+    if (digit && index < 5) inputs.current[index + 1]?.focus();
+  };
+
+  const handleKeyDown = (index: number, e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Backspace') {
+      if (digits[index]) {
+        const next = [...digits]; next[index] = ''; onChange(next.join(''));
+      } else if (index > 0) {
+        const next = [...digits]; next[index - 1] = ''; onChange(next.join(''));
+        inputs.current[index - 1]?.focus();
+      }
+    }
+    if (e.key === 'ArrowLeft' && index > 0) inputs.current[index - 1]?.focus();
+    if (e.key === 'ArrowRight' && index < 5) inputs.current[index + 1]?.focus();
+  };
+
+  const handlePaste = (e: React.ClipboardEvent) => {
+    e.preventDefault();
+    const pasted = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, 6);
+    onChange(pasted.padEnd(6, '').slice(0, 6));
+    inputs.current[Math.min(pasted.length, 5)]?.focus();
+  };
+
+  return (
+    <div className="flex gap-2 justify-center">
+      {digits.map((digit, i) => (
+        <input
+          key={i}
+          ref={(el) => { inputs.current[i] = el; }}
+          type="text"
+          inputMode="numeric"
+          maxLength={1}
+          value={digit}
+          disabled={disabled}
+          title={`OTP digit ${i + 1}`}
+          placeholder="·"
+          onChange={(e) => handleChange(i, e.target.value)}
+          onKeyDown={(e) => handleKeyDown(i, e)}
+          onPaste={handlePaste}
+          className={`w-11 h-14 text-center text-xl font-bold rounded-xl border-2 transition-all
+            bg-white/10 text-white outline-none
+            ${digit ? 'border-green-400 bg-green-400/10' : 'border-white/20'}
+            focus:border-green-400 focus:bg-green-400/10
+            disabled:opacity-50 disabled:cursor-not-allowed`}
+        />
+      ))}
+    </div>
+  );
+}
 
 interface SignInProps {
   onSuccess: () => void;
@@ -20,31 +88,118 @@ interface SignInProps {
 }
 
 export function SignIn({ onSuccess, onSwitchToSignUp, onBack }: SignInProps) {
+  // Login form state
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+
+  // OTP screen state
+  const [step, setStep] = useState<'login' | 'otp'>('login');
+  const [pendingEmail, setPendingEmail] = useState('');
+  const [otp, setOtp] = useState('');
+  const [resendCooldown, setResendCooldown] = useState(0);
+
+  // Shared
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+
+  // Countdown timer for resend button
+  useEffect(() => {
+    if (resendCooldown <= 0) return;
+    const timer = setTimeout(() => setResendCooldown((c) => c - 1), 1000);
+    return () => clearTimeout(timer);
+  }, [resendCooldown]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setSuccess('');
+    
+    // Client-side validation
+    if (!email?.trim()) {
+      setError('Please enter your email address.');
+      return;
+    }
+    if (!password) {
+      setError('Please enter your password.');
+      return;
+    }
+    
     setIsLoading(true);
 
     try {
       const response = await signIn(email, password);
 
-      if (response.success) {
-        setSuccess(response.message);
+      if (response?.success) {
+        setSuccess(response.message || 'Sign in successful!');
         setTimeout(() => onSuccess(), 1000);
-
       } else {
-        setError(response.message);
+        // Check if the account requires verification
+        if (response?.requiresVerification) {
+          setPendingEmail(response.email || email.toLowerCase().trim());
+          setStep('otp');
+          setResendCooldown(60);
+          setError('');
+        } else {
+          setError(response?.message || 'Sign in failed. Please try again.');
+        }
       }
-    } catch {
+    } catch (err) {
+      console.error('SignIn error:', err);
       setError('An unexpected error occurred. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Handle OTP Verification
+  const handleVerify = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setSuccess('');
+    
+    const cleanOtp = otp?.replace(/\D/g, '') || '';
+    if (cleanOtp.length !== 6) { 
+      setError('Please enter the complete 6-digit code.'); 
+      return; 
+    }
+    
+    setIsLoading(true);
+    try {
+      const res = await verifyOTP(pendingEmail, cleanOtp);
+      if (res?.success) {
+        setSuccess('Email verified! Welcome to EcoSync 🌿');
+        setTimeout(() => onSuccess(), 1200);
+      } else {
+        setError(res?.message || 'Verification failed. Please check the code.');
+      }
+    } catch (err) {
+      console.error('Verification error:', err);
+      setError('Verification failed. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Handle Resend OTP
+  const handleResend = async () => {
+    if (resendCooldown > 0) return;
+    setError('');
+    setSuccess('');
+    setIsLoading(true);
+    try {
+      const res = await resendOTP(pendingEmail);
+      if (res?.success) {
+        setSuccess('New code sent! Check your email.');
+        setResendCooldown(60);
+        setOtp('');
+      } else {
+        setError(res?.message || 'Failed to resend code. Please try again.');
+      }
+    } catch (err) {
+      console.error('Resend OTP error:', err);
+      setError('Failed to resend code. Please check your connection.');
     } finally {
       setIsLoading(false);
     }
@@ -65,67 +220,123 @@ export function SignIn({ onSuccess, onSwitchToSignUp, onBack }: SignInProps) {
       >
         {/* Back Button */}
         <button
-          onClick={onBack}
+          onClick={step === 'otp' ? () => { setStep('login'); setError(''); } : onBack}
           className="absolute -top-12 left-0 text-white/70 hover:text-white flex items-center gap-2 transition-colors"
         >
           <ArrowRight className="w-4 h-4 rotate-180" />
-          Back to Home
+          {step === 'otp' ? 'Back to Login' : 'Back to Home'}
         </button>
 
-        {/* LOGIN FORM */}
-        <div className="bg-white/10 backdrop-blur-xl rounded-3xl p-8 shadow-2xl border border-white/20">
-            <div className="flex justify-center mb-6">
-              <div className="w-16 h-16 bg-gradient-to-br from-green-400 to-emerald-600 rounded-2xl flex items-center justify-center shadow-lg">
-                <Leaf className="w-8 h-8 text-white" />
-              </div>
-            </div>
-            <div className="text-center mb-8">
-              <h1 className="text-2xl font-bold text-white mb-2">Welcome Back</h1>
-              <p className="text-white/60">Sign in to continue to EcoSync</p>
-            </div>
-
-            {error && (
-              <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="mb-4 p-3 bg-red-500/20 border border-red-500/30 rounded-xl flex items-center gap-2">
-                <AlertCircle className="w-5 h-5 text-red-400" />
-                <span className="text-red-200 text-sm">{error}</span>
-              </motion.div>
-            )}
-            {success && (
-              <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="mb-4 p-3 bg-green-500/20 border border-green-500/30 rounded-xl flex items-center gap-2">
-                <CheckCircle className="w-5 h-5 text-green-400" />
-                <span className="text-green-200 text-sm">{success}</span>
-              </motion.div>
-            )}
-
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <label className="block text-white/70 text-sm mb-2">Email Address</label>
-                <div className="relative">
-                  <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-white/40" />
-                  <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" required className="w-full bg-white/10 border border-white/20 rounded-xl py-3 pl-12 pr-4 text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-green-400/50 focus:border-transparent transition-all" />
+        <AnimatePresence mode="sync">
+          {/* ── STEP 1: Login Form ── */}
+          {step === 'login' && (
+            <motion.div key="login" initial={{ opacity: 0, x: -30 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -30 }} transition={{ duration: 0.25 }}>
+              <div className="bg-white/10 backdrop-blur-xl rounded-3xl p-8 shadow-2xl border border-white/20">
+                <div className="flex justify-center mb-6">
+                  <div className="w-16 h-16 bg-gradient-to-br from-green-400 to-emerald-600 rounded-2xl flex items-center justify-center shadow-lg">
+                    <Leaf className="w-8 h-8 text-white" />
+                  </div>
                 </div>
+                <div className="text-center mb-8">
+                  <h1 className="text-2xl font-bold text-white mb-2">Welcome Back</h1>
+                  <p className="text-white/60">Sign in to continue to EcoSync</p>
+                </div>
+
+                {error && (
+                  <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="mb-4 p-3 bg-red-500/20 border border-red-500/30 rounded-xl flex items-center gap-2">
+                    <AlertCircle className="w-5 h-5 text-red-400" />
+                    <span className="text-red-200 text-sm">{error}</span>
+                  </motion.div>
+                )}
+                {success && (
+                  <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="mb-4 p-3 bg-green-500/20 border border-green-500/30 rounded-xl flex items-center gap-2">
+                    <CheckCircle className="w-5 h-5 text-green-400" />
+                    <span className="text-green-200 text-sm">{success}</span>
+                  </motion.div>
+                )}
+
+                <form onSubmit={handleSubmit} className="space-y-4">
+                  <div>
+                    <label className="block text-white/70 text-sm mb-2">Email Address</label>
+                    <div className="relative">
+                      <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-white/40" />
+                      <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" required className="w-full bg-white/10 border border-white/20 rounded-xl py-3 pl-12 pr-4 text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-green-400/50 focus:border-transparent transition-all" />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-white/70 text-sm mb-2">Password</label>
+                    <div className="relative">
+                      <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-white/40" />
+                      <input type={showPassword ? 'text' : 'password'} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Enter your password" required className="w-full bg-white/10 border border-white/20 rounded-xl py-3 pl-12 pr-12 text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-green-400/50 focus:border-transparent transition-all" />
+                      <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-4 top-1/2 -translate-y-1/2 text-white/40 hover:text-white/70 transition-colors">
+                        {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                      </button>
+                    </div>
+                  </div>
+
+                  <button type="submit" disabled={isLoading} className="w-full bg-gradient-to-r from-green-500 to-emerald-600 text-white py-3 rounded-xl font-semibold hover:from-green-600 hover:to-emerald-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2">
+                    {isLoading ? <><Loader2 className="w-5 h-5 animate-spin" />Signing in...</> : <>Sign In<ArrowRight className="w-5 h-5" /></>}
+                  </button>
+                </form>
+
+                <p className="text-center mt-6 text-white/60">
+                  Don't have an account?{' '}
+                  <button onClick={onSwitchToSignUp} className="text-green-400 font-semibold hover:text-green-300 transition-colors">Sign Up</button>
+                </p>
               </div>
-              <div>
-                <label className="block text-white/70 text-sm mb-2">Password</label>
-                <div className="relative">
-                  <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-white/40" />
-                  <input type={showPassword ? 'text' : 'password'} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Enter your password" required className="w-full bg-white/10 border border-white/20 rounded-xl py-3 pl-12 pr-12 text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-green-400/50 focus:border-transparent transition-all" />
-                  <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-4 top-1/2 -translate-y-1/2 text-white/40 hover:text-white/70 transition-colors">
-                    {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+            </motion.div>
+          )}
+
+          {/* ── STEP 2: OTP Verification ── */}
+          {step === 'otp' && (
+            <motion.div key="otp" initial={{ opacity: 0, x: 30 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 30 }} transition={{ duration: 0.3 }}>
+              <div className="bg-white/10 backdrop-blur-xl rounded-3xl p-8 shadow-2xl border border-white/20">
+                <div className="flex justify-center mb-6">
+                  <div className="w-16 h-16 bg-gradient-to-br from-green-400 to-emerald-600 rounded-2xl flex items-center justify-center shadow-lg">
+                    <ShieldCheck className="w-8 h-8 text-white" />
+                  </div>
+                </div>
+                <div className="text-center mb-6">
+                  <h1 className="text-2xl font-bold text-white mb-2">Verify Your Email</h1>
+                  <p className="text-white/60 text-sm">We sent a 6-digit code to</p>
+                  <p className="text-green-400 font-semibold mt-1 break-all">{pendingEmail}</p>
+                </div>
+
+                {error && (
+                  <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="mb-4 p-3 bg-red-500/20 border border-red-500/30 rounded-xl flex items-center gap-2">
+                    <AlertCircle className="w-5 h-5 text-red-400 flex-shrink-0" />
+                    <span className="text-red-200 text-sm">{error}</span>
+                  </motion.div>
+                )}
+                {success && (
+                  <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="mb-4 p-3 bg-green-500/20 border border-green-500/30 rounded-xl flex items-center gap-2">
+                    <CheckCircle className="w-5 h-5 text-green-400 flex-shrink-0" />
+                    <span className="text-green-200 text-sm">{success}</span>
+                  </motion.div>
+                )}
+
+                <form onSubmit={handleVerify} className="space-y-6">
+                  <div>
+                    <label className="block text-white/70 text-sm mb-4 text-center">Enter verification code</label>
+                    <OTPInput value={otp} onChange={setOtp} disabled={isLoading} />
+                  </div>
+                  <button type="submit" disabled={isLoading || otp.replace(/\D/g, '').length !== 6} className="w-full bg-gradient-to-r from-green-500 to-emerald-600 text-white py-3 rounded-xl font-semibold hover:from-green-600 hover:to-emerald-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2">
+                    {isLoading ? <><Loader2 className="w-5 h-5 animate-spin" />Verifying...</> : <><ShieldCheck className="w-5 h-5" />Verify &amp; Continue</>}
+                  </button>
+                </form>
+
+                <div className="mt-5 text-center">
+                  <p className="text-white/50 text-sm mb-2">Didn't receive the code?</p>
+                  <button onClick={handleResend} disabled={resendCooldown > 0 || isLoading} className="flex items-center gap-2 mx-auto text-sm text-green-400 hover:text-green-300 disabled:text-white/30 disabled:cursor-not-allowed transition-colors">
+                    <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
+                    {resendCooldown > 0 ? `Resend in ${resendCooldown}s` : 'Resend Code'}
                   </button>
                 </div>
+                <p className="text-center mt-4 text-white/30 text-xs">Code expires in 5 minutes</p>
               </div>
-
-              <button type="submit" disabled={isLoading} className="w-full bg-gradient-to-r from-green-500 to-emerald-600 text-white py-3 rounded-xl font-semibold hover:from-green-600 hover:to-emerald-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2">
-                {isLoading ? <><Loader2 className="w-5 h-5 animate-spin" />Signing in...</> : <>Sign In<ArrowRight className="w-5 h-5" /></>}
-              </button>
-            </form>
-
-            <p className="text-center mt-6 text-white/60">
-              Don't have an account?{' '}
-              <button onClick={onSwitchToSignUp} className="text-green-400 font-semibold hover:text-green-300 transition-colors">Sign Up</button>
-            </p>
-          </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </motion.div>
     </div>
   );
