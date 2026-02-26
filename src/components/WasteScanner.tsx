@@ -14,6 +14,7 @@ import {
     Leaf,
 } from 'lucide-react';
 import { addWasteRecycled } from '../lib/download';
+import { CategoryBadge } from './CategoryBadge';
 
 interface ClassificationResult {
     wasteType: string;
@@ -373,15 +374,7 @@ export function WasteScanner({ isOpen, onClose, onScanComplete }: WasteScannerPr
                             <div className="grid grid-cols-2 gap-3">
                                 <div className="bg-gray-800/60 rounded-xl p-3">
                                     <p className="text-gray-400 text-xs mb-1">Category</p>
-                                    {/* eslint-disable-next-line react/forbid-dom-props */}
-                                    <div
-                                        className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-lg text-white text-xs font-semibold capitalize"
-                                        style={{ backgroundColor: result.color + '33', border: `1px solid ${result.color}55` }}
-                                    >
-                                        {/* eslint-disable-next-line react/forbid-dom-props */}
-                                        <span style={{ color: result.color }}>●</span>
-                                        {result.category}
-                                    </div>
+                                    <CategoryBadge category={result.category} color={result.color} />
                                 </div>
                                 <div className="bg-gray-800/60 rounded-xl p-3">
                                     <p className="text-gray-400 text-xs mb-1">Recyclable?</p>
