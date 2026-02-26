@@ -19,7 +19,7 @@ export const connectDB = async (): Promise<void> => {
 
   try {
     await mongoose.connect(uri, {
-      serverSelectionTimeoutMS: 500,     // 500ms timeout for instant fallback
+      serverSelectionTimeoutMS: 15000,   // 15s timeout for cloud deployment
       socketTimeoutMS:          45000,   // close sockets after 45 s inactivity
       family:                   4,       // force IPv4 — avoids IPv6 SRV issues
     });
