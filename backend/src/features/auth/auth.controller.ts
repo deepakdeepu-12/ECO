@@ -43,7 +43,7 @@ export const register = async (req: Request, res: Response): Promise<Response> =
         password: await hashPassword(password),
         otp,
         otpExpires: Date.now() + 5 * 60 * 1000,
-        isVerified: true, // Auto-verify for direct login
+        isVerified: false,
         greenPoints: 100,
         totalRecycled: 0,
         carbonSaved: 0,
@@ -51,24 +51,13 @@ export const register = async (req: Request, res: Response): Promise<Response> =
         joinedDate: new Date().toISOString(),
       };
       inMemoryUsers.set(emailLower, newUser);
-      console.log(`✅ Account created for ${emailLower} (auto-verified)`);
+      void sendOTPEmail(emailLower, name.trim(), otp);
+      console.log(`✅ Account created for ${emailLower} - OTP sent`);
       return res.status(201).json({
         success: true,
-        message: 'Account created successfully! You can now sign in.',
-        requiresVerification: false,
+        message: 'Account created! Please check your email for the verification code.',
+        requiresVerification: true,
         email: emailLower,
-        token: signToken(userId),
-        user: {
-          id: newUser.id,
-          name: newUser.name,
-          email: newUser.email,
-          isVerified: newUser.isVerified,
-          greenPoints: newUser.greenPoints,
-          totalRecycled: newUser.totalRecycled,
-          carbonSaved: newUser.carbonSaved,
-          level: newUser.level,
-          joinedDate: newUser.joinedDate,
-        },
       });
     }
 
@@ -76,18 +65,17 @@ export const register = async (req: Request, res: Response): Promise<Response> =
     const existingUser = await User.findOne({ email: emailLower });
     if (existingUser) {
       if (!existingUser.isVerified) {
-        // Auto-verify existing unverified accounts for direct login
-        existingUser.isVerified = true;
-        existingUser.otp = null;
-        existingUser.otpExpires = null;
+        // Resend OTP for existing unverified accounts
+        const otp = generateOTP();
+        existingUser.otp = otp;
+        existingUser.otpExpires = new Date(Date.now() + 5 * 60 * 1000);
         await existingUser.save();
+        void sendOTPEmail(existingUser.email, existingUser.name, otp);
         return res.status(200).json({
           success: true,
-          message: 'Account already exists. You can now sign in directly.',
-          requiresVerification: false,
+          message: 'Account found but not verified. A new verification code has been sent to your email.',
+          requiresVerification: true,
           email: existingUser.email,
-          token: signToken(existingUser._id),
-          user: existingUser.toSafeObject(),
         });
       }
       return res.status(409).json({ success: false, message: 'An account with this email already exists. Please sign in.' });
@@ -101,18 +89,15 @@ export const register = async (req: Request, res: Response): Promise<Response> =
       otp,
       otpExpires: new Date(Date.now() + 5 * 60 * 1000),
       greenPoints: 100,
-      isVerified: true, // Auto-verify for direct login
+      isVerified: false,
     });
-    // Optional: still send OTP email for reference
     void sendOTPEmail(user.email, user.name, otp);
 
     return res.status(201).json({
       success: true,
-      message: 'Account created successfully! You can now sign in.',
-      requiresVerification: false,
+      message: 'Account created! Please check your email for the verification code.',
+      requiresVerification: true,
       email: user.email,
-      token: signToken(user._id),
-      user: user.toSafeObject(),
     });
   } catch (error) {
     const err = error as NodeJS.ErrnoException & { code?: string };
