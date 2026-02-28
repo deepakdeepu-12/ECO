@@ -9,10 +9,10 @@ const start = async (): Promise<void> => {
   app.listen(PORT, () => {
     // Connect to MongoDB after server is running
     setImmediate(() => void connectDB());
-    console.log(`\n?? EcoSync AI Backend running on http://localhost:${PORT}`);
-    console.log(`?? Health:         GET  /api/health`);
-    console.log(`?? Classify:       POST /api/classify`);
-    console.log(`?? Register:       POST /api/auth/register`);
+    console.log(`\n🌿 EcoSync AI Backend running on http://localhost:${PORT}`);
+    console.log(`💚 Health:         GET  /api/health`);
+    console.log(`🔍 Classify:       POST /api/classify  [protected]`);
+    console.log(`📝 Register:       POST /api/auth/register`);
     console.log(`? Verify OTP:     POST /api/auth/verify-otp`);
     console.log(`?? Resend OTP:     POST /api/auth/resend-otp`);
     console.log(`?? Login:          POST /api/auth/login`);

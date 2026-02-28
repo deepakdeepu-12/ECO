@@ -56,14 +56,16 @@ export const sendOTPEmail = async (
   name: string,
   otp: string
 ): Promise<boolean> => {
-  // Skip email sending in dev mode if credentials are placeholders
-  const isDevMode = !process.env.EMAIL_PASSWORD || 
-                     process.env.EMAIL_PASSWORD === 'your_gmail_app_password_here';
-  
-  if (isDevMode) {
+  // Check if email credentials are configured
+  if (!process.env.EMAIL_USER || !process.env.EMAIL_PASSWORD) {
     console.log(`\n📧 OTP for ${email}: ${otp}`);
-    console.log(`⚠️  Email not sent (dev mode - update EMAIL_PASSWORD in .env)\n`);
+    console.log(`⚠️  Email not sent - EMAIL_USER or EMAIL_PASSWORD not configured in .env\n`);
     return false;
+  }
+  
+  // If credentials look like placeholders, warn but still try to send
+  if (process.env.EMAIL_PASSWORD === 'your_gmail_app_password_here') {
+    console.log(`⚠️  Warning: EMAIL_PASSWORD appears to be a placeholder`);
   }
 
   try {

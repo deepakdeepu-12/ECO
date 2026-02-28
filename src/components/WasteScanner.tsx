@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { addWasteRecycled } from '../lib/download';
 import { CategoryBadge } from './CategoryBadge';
+import { getAuthHeaders } from '../lib/auth';
 
 interface ClassificationResult {
     wasteType: string;
@@ -135,13 +136,17 @@ export function WasteScanner({ isOpen, onClose, onScanComplete }: WasteScannerPr
         try {
             const response = await fetch(`${BACKEND_URL}/api/classify`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: getAuthHeaders(),
                 body: JSON.stringify({ image: imageData }),
             });
 
             const json = await response.json();
 
             if (!response.ok || !json.success) {
+                // Handle authentication errors
+                if (response.status === 401 || response.status === 403) {
+                    throw new Error('Please sign in to use the waste scanner');
+                }
                 throw new Error(json.error || json.message || 'Classification failed');
             }
 

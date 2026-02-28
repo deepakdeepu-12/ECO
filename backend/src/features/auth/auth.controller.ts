@@ -43,7 +43,7 @@ export const register = async (req: Request, res: Response): Promise<Response> =
         password: await hashPassword(password),
         otp,
         otpExpires: Date.now() + 5 * 60 * 1000,
-        isVerified: false,
+        isVerified: false, // Require email verification
         greenPoints: 100,
         totalRecycled: 0,
         carbonSaved: 0,
@@ -51,8 +51,10 @@ export const register = async (req: Request, res: Response): Promise<Response> =
         joinedDate: new Date().toISOString(),
       };
       inMemoryUsers.set(emailLower, newUser);
-      void sendOTPEmail(emailLower, name.trim(), otp);
-      console.log(`✅ Account created for ${emailLower} - OTP sent`);
+      
+      // Send OTP email
+      const emailSent = await sendOTPEmail(emailLower, name.trim(), otp);
+      console.log(`✅ Account created for ${emailLower} - Email ${emailSent ? 'sent' : 'logged to console'}`);
       return res.status(201).json({
         success: true,
         message: 'Account created! Please check your email for the verification code.',
@@ -65,15 +67,15 @@ export const register = async (req: Request, res: Response): Promise<Response> =
     const existingUser = await User.findOne({ email: emailLower });
     if (existingUser) {
       if (!existingUser.isVerified) {
-        // Resend OTP for existing unverified accounts
-        const otp = generateOTP();
-        existingUser.otp = otp;
+        // Resend OTP for unverified accounts
+        const newOtp = generateOTP();
+        existingUser.otp = newOtp;
         existingUser.otpExpires = new Date(Date.now() + 5 * 60 * 1000);
         await existingUser.save();
-        void sendOTPEmail(existingUser.email, existingUser.name, otp);
+        await sendOTPEmail(existingUser.email, existingUser.name, newOtp);
         return res.status(200).json({
           success: true,
-          message: 'Account found but not verified. A new verification code has been sent to your email.',
+          message: 'Account exists but not verified. A new verification code has been sent to your email.',
           requiresVerification: true,
           email: existingUser.email,
         });
@@ -89,9 +91,12 @@ export const register = async (req: Request, res: Response): Promise<Response> =
       otp,
       otpExpires: new Date(Date.now() + 5 * 60 * 1000),
       greenPoints: 100,
-      isVerified: false,
+      isVerified: false, // Require email verification
     });
-    void sendOTPEmail(user.email, user.name, otp);
+    
+    // Send OTP email
+    const emailSent = await sendOTPEmail(user.email, user.name, otp);
+    console.log(`✅ Account created for ${user.email} - Email ${emailSent ? 'sent' : 'logged to console'}`);
 
     return res.status(201).json({
       success: true,
