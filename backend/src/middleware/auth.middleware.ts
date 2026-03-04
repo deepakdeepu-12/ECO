@@ -1,15 +1,14 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
-import User from '../features/auth/auth.model';
+import User, { IUser } from '../features/auth/auth.model';
 
 // ─── Type Augmentation ────────────────────────────────────────────────────────
 
 declare global {
   // eslint-disable-next-line @typescript-eslint/no-namespace
   namespace Express {
-    interface Request {
-      user?: InstanceType<typeof User>;
-    }
+    // Override the Passport user type with our IUser
+    interface User extends IUser {}
   }
 }
 

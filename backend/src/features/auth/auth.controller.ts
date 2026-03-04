@@ -34,16 +34,15 @@ export const register = async (req: Request, res: Response): Promise<Response> =
       if (inMemoryUsers.has(emailLower)) {
         return res.status(409).json({ success: false, message: 'An account with this email already exists.' });
       }
-      const otp = generateOTP();
       const userId = `user_${Date.now()}`;
       const newUser = {
         id: userId,
         name: name.trim(),
         email: emailLower,
         password: await hashPassword(password),
-        otp,
-        otpExpires: Date.now() + 5 * 60 * 1000,
-        isVerified: false, // Require email verification
+        otp: null,
+        otpExpires: null,
+        isVerified: true, // Auto-verified for direct access
         greenPoints: 100,
         totalRecycled: 0,
         carbonSaved: 0,
@@ -52,57 +51,46 @@ export const register = async (req: Request, res: Response): Promise<Response> =
       };
       inMemoryUsers.set(emailLower, newUser);
       
-      // Send OTP email
-      const emailSent = await sendOTPEmail(emailLower, name.trim(), otp);
-      console.log(`✅ Account created for ${emailLower} - Email ${emailSent ? 'sent' : 'logged to console'}`);
+      console.log(`✅ Account created for ${emailLower}`);
       return res.status(201).json({
         success: true,
-        message: 'Account created! Please check your email for the verification code.',
-        requiresVerification: true,
-        email: emailLower,
+        message: 'Account created successfully! Welcome to EcoSync 🌿',
+        token: signToken(userId),
+        user: {
+          id: userId,
+          name: newUser.name,
+          email: newUser.email,
+          isVerified: newUser.isVerified,
+          greenPoints: newUser.greenPoints,
+          totalRecycled: newUser.totalRecycled,
+          carbonSaved: newUser.carbonSaved,
+          level: newUser.level,
+          joinedDate: newUser.joinedDate,
+        },
       });
     }
 
     // ── MongoDB Mode ────────────────────────────────────────────────────────
     const existingUser = await User.findOne({ email: emailLower });
     if (existingUser) {
-      if (!existingUser.isVerified) {
-        // Resend OTP for unverified accounts
-        const newOtp = generateOTP();
-        existingUser.otp = newOtp;
-        existingUser.otpExpires = new Date(Date.now() + 5 * 60 * 1000);
-        await existingUser.save();
-        await sendOTPEmail(existingUser.email, existingUser.name, newOtp);
-        return res.status(200).json({
-          success: true,
-          message: 'Account exists but not verified. A new verification code has been sent to your email.',
-          requiresVerification: true,
-          email: existingUser.email,
-        });
-      }
       return res.status(409).json({ success: false, message: 'An account with this email already exists. Please sign in.' });
     }
 
-    const otp = generateOTP();
     const user = await User.create({
       name: name.trim(),
       email: emailLower,
       password: await hashPassword(password),
-      otp,
-      otpExpires: new Date(Date.now() + 5 * 60 * 1000),
       greenPoints: 100,
-      isVerified: false, // Require email verification
+      isVerified: true, // Auto-verified for direct access
     });
     
-    // Send OTP email
-    const emailSent = await sendOTPEmail(user.email, user.name, otp);
-    console.log(`✅ Account created for ${user.email} - Email ${emailSent ? 'sent' : 'logged to console'}`);
+    console.log(`✅ Account created for ${user.email}`);
 
     return res.status(201).json({
       success: true,
-      message: 'Account created! Please check your email for the verification code.',
-      requiresVerification: true,
-      email: user.email,
+      message: 'Account created successfully! Welcome to EcoSync 🌿',
+      token: signToken(user._id),
+      user: user.toSafeObject(),
     });
   } catch (error) {
     const err = error as NodeJS.ErrnoException & { code?: string };
@@ -254,16 +242,6 @@ export const login = async (req: Request, res: Response): Promise<Response> => {
       const user = inMemoryUsers.get(emailLower);
       if (!user) return res.status(401).json({ success: false, message: 'No account found with this email address.' });
 
-      // Require email verification before login
-      if (!user.isVerified) {
-        return res.status(403).json({
-          success: false,
-          message: 'Please verify your email before signing in. Check your inbox for the verification code.',
-          requiresVerification: true,
-          email: user.email,
-        });
-      }
-
       const isMatch = await comparePassword(password, user.password);
       if (!isMatch) return res.status(401).json({ success: false, message: 'Incorrect password. Please try again.' });
 
@@ -288,13 +266,11 @@ export const login = async (req: Request, res: Response): Promise<Response> => {
     const user = await User.findOne({ email: emailLower }).select('+password');
     if (!user) return res.status(401).json({ success: false, message: 'No account found with this email address.' });
 
-    // Require email verification before login
-    if (!user.isVerified) {
-      return res.status(403).json({
+    // Check if user has a password (not a Google OAuth user)
+    if (!user.password) {
+      return res.status(400).json({
         success: false,
-        message: 'Please verify your email before signing in. Check your inbox for the verification code or sign up again.',
-        requiresVerification: true,
-        email: user.email,
+        message: 'This account uses Google sign-in. Please use "Continue with Google" to sign in.',
       });
     }
 
@@ -317,9 +293,13 @@ export const login = async (req: Request, res: Response): Promise<Response> => {
 
 export const getProfile = async (req: Request, res: Response): Promise<void> => {
   try {
+    if (!req.user) {
+      res.status(401).json({ success: false, message: 'User not authenticated.' });
+      return;
+    }
     res.status(200).json({
       success: true,
-      user: req.user?.toSafeObject ? req.user.toSafeObject() : req.user,
+      user: req.user.toSafeObject(),
     });
   } catch (error) {
     console.error('Profile error:', error);
@@ -331,6 +311,10 @@ export const getProfile = async (req: Request, res: Response): Promise<void> => 
 
 export const updateProfile = async (req: Request, res: Response): Promise<Response> => {
   try {
+    if (!req.user) {
+      return res.status(401).json({ success: false, message: 'User not authenticated.' });
+    }
+
     const allowed: Array<'name' | 'avatar'> = ['name', 'avatar'];
     const updates: Partial<Record<'name' | 'avatar', unknown>> = {};
     for (const key of allowed) {
@@ -338,7 +322,7 @@ export const updateProfile = async (req: Request, res: Response): Promise<Respon
     }
 
     const updated = await User.findByIdAndUpdate(
-      req.user?._id,
+      req.user._id,
       { $set: updates },
       { new: true, runValidators: true }
     );
@@ -353,5 +337,26 @@ export const updateProfile = async (req: Request, res: Response): Promise<Respon
   } catch (error) {
     console.error('Update profile error:', error);
     return res.status(500).json({ success: false, message: 'Failed to update profile.' });
+  }
+};
+
+// ─── GET /api/auth/google/callback  (OAuth callback) ──────────────────────────
+
+export const googleCallback = async (req: Request, res: Response): Promise<void> => {
+  try {
+    if (!req.user) {
+      return res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:5173'}/signin?error=auth_failed`);
+    }
+
+    const user = req.user as any;
+    const token = signToken(user._id);
+
+    // Redirect to frontend with token
+    const frontendURL = process.env.FRONTEND_URL || 'http://localhost:5173';
+    res.redirect(`${frontendURL}/auth/google/callback?token=${token}`);
+  } catch (error) {
+    console.error('Google callback error:', error);
+    const frontendURL = process.env.FRONTEND_URL || 'http://localhost:5173';
+    res.redirect(`${frontendURL}/signin?error=auth_failed`);
   }
 };

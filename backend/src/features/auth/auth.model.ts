@@ -18,7 +18,8 @@ export interface SafeUser {
 export interface IUser extends Document {
   name: string;
   email: string;
-  password: string;
+  password?: string;
+  googleId?: string;
   isVerified: boolean;
   otp: string | null;
   otpExpires: Date | null;
@@ -53,8 +54,16 @@ const userSchema = new Schema<IUser>(
     },
     password: {
       type: String,
-      required: [true, 'Password is required'],
+      required: function(this: IUser) {
+        // Password is required only if googleId is not present
+        return !this.googleId;
+      },
       minlength: [6, 'Password must be at least 6 characters'],
+    },
+    googleId: {
+      type: String,
+      sparse: true, // Allows null values while maintaining uniqueness for non-null values
+      unique: true,
     },
     isVerified:   { type: Boolean, default: false },
     otp:          { type: String,  default: null },
