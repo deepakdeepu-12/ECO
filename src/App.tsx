@@ -1,15 +1,13 @@
 import { useState } from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { SignIn }       from './pages/SignIn';
 import { SignUp }       from './pages/SignUp';
 import { Dashboard }   from './pages/Dashboard';
 import { LandingPage } from './pages/LandingPage';
-import { GoogleCallback } from './pages/GoogleCallback';
 import { isAuthenticated } from './lib/auth';
 
 type Page = 'home' | 'signin' | 'signup' | 'dashboard';
 
-function AppContent() {
+export function App() {
   const [currentPage, setCurrentPage] = useState<Page>(() => 
     isAuthenticated() ? 'dashboard' : 'home'
   );
@@ -41,15 +39,4 @@ function AppContent() {
   }
 
   return <LandingPage onNavigate={setCurrentPage} />;
-}
-
-export function App() {
-  return (
-    <BrowserRouter>
-      <Routes>
-        <Route path="/auth/google/callback" element={<GoogleCallback />} />
-        <Route path="/*" element={<AppContent />} />
-      </Routes>
-    </BrowserRouter>
-  );
 }

@@ -339,24 +339,3 @@ export const updateProfile = async (req: Request, res: Response): Promise<Respon
     return res.status(500).json({ success: false, message: 'Failed to update profile.' });
   }
 };
-
-// ─── GET /api/auth/google/callback  (OAuth callback) ──────────────────────────
-
-export const googleCallback = async (req: Request, res: Response): Promise<void> => {
-  try {
-    if (!req.user) {
-      return res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:5173'}/signin?error=auth_failed`);
-    }
-
-    const user = req.user as any;
-    const token = signToken(user._id);
-
-    // Redirect to frontend with token
-    const frontendURL = process.env.FRONTEND_URL || 'http://localhost:5173';
-    res.redirect(`${frontendURL}/auth/google/callback?token=${token}`);
-  } catch (error) {
-    console.error('Google callback error:', error);
-    const frontendURL = process.env.FRONTEND_URL || 'http://localhost:5173';
-    res.redirect(`${frontendURL}/signin?error=auth_failed`);
-  }
-};

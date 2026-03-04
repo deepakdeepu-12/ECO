@@ -1,8 +1,6 @@
 import express from 'express';
 import cors from 'cors';
 import mongoose from 'mongoose';
-import session from 'express-session';
-import passport from 'passport';
 
 import authRoutes          from './features/auth/auth.routes';
 import classifyRoutes      from './features/classify/classify.routes';
@@ -10,7 +8,6 @@ import notificationsRoutes from './features/notifications/notifications.routes';
 import supportRoutes       from './features/support/support.routes';
 import userRoutes          from './features/user/user.routes';
 import { errorHandler }    from './middleware/errorHandler';
-import { configurePassport } from './config/passport';
 
 const app = express();
 
@@ -30,24 +27,6 @@ app.use(cors({
   credentials: true,
 }));
 app.use(express.json({ limit: '20mb' }));
-
-// Session configuration for OAuth
-app.use(
-  session({
-    secret: process.env.SESSION_SECRET || 'ecosync_session_secret_fallback',
-    resave: false,
-    saveUninitialized: false,
-    cookie: {
-      secure: process.env.NODE_ENV === 'production',
-      maxAge: 24 * 60 * 60 * 1000, // 24 hours
-    },
-  })
-);
-
-// Initialize Passport
-app.use(passport.initialize());
-app.use(passport.session());
-configurePassport();
 
 // ─── Root Route ───────────────────────────────────────────────────────────────
 app.get('/', (_req, res) => {
